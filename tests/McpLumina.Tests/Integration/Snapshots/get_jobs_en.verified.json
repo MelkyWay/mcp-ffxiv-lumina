@@ -1,0 +1,558 @@
+﻿{
+  "LanguagesRequested": [
+    "en"
+  ],
+  "LanguagesReturned": [
+    "en"
+  ],
+  "FallbackUsed": false,
+  "Jobs": [
+    {
+      "RowId": 1,
+      "Name": {
+        "en": "gladiator"
+      },
+      "Abbreviation": {
+        "en": "GLA"
+      },
+      "Role": "Tank",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 2,
+      "Name": {
+        "en": "pugilist"
+      },
+      "Abbreviation": {
+        "en": "PGL"
+      },
+      "Role": "Melee DPS",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 3,
+      "Name": {
+        "en": "marauder"
+      },
+      "Abbreviation": {
+        "en": "MRD"
+      },
+      "Role": "Tank",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 4,
+      "Name": {
+        "en": "lancer"
+      },
+      "Abbreviation": {
+        "en": "LNC"
+      },
+      "Role": "Melee DPS",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 5,
+      "Name": {
+        "en": "archer"
+      },
+      "Abbreviation": {
+        "en": "ARC"
+      },
+      "Role": "Physical Ranged DPS",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 6,
+      "Name": {
+        "en": "conjurer"
+      },
+      "Abbreviation": {
+        "en": "CNJ"
+      },
+      "Role": "Healer",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 7,
+      "Name": {
+        "en": "thaumaturge"
+      },
+      "Abbreviation": {
+        "en": "THM"
+      },
+      "Role": "Magical Ranged DPS",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 8,
+      "Name": {
+        "en": "carpenter"
+      },
+      "Abbreviation": {
+        "en": "CRP"
+      },
+      "Role": "None",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 9,
+      "Name": {
+        "en": "blacksmith"
+      },
+      "Abbreviation": {
+        "en": "BSM"
+      },
+      "Role": "None",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 10,
+      "Name": {
+        "en": "armorer"
+      },
+      "Abbreviation": {
+        "en": "ARM"
+      },
+      "Role": "None",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 11,
+      "Name": {
+        "en": "goldsmith"
+      },
+      "Abbreviation": {
+        "en": "GSM"
+      },
+      "Role": "None",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 12,
+      "Name": {
+        "en": "leatherworker"
+      },
+      "Abbreviation": {
+        "en": "LTW"
+      },
+      "Role": "None",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 13,
+      "Name": {
+        "en": "weaver"
+      },
+      "Abbreviation": {
+        "en": "WVR"
+      },
+      "Role": "None",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 14,
+      "Name": {
+        "en": "alchemist"
+      },
+      "Abbreviation": {
+        "en": "ALC"
+      },
+      "Role": "None",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 15,
+      "Name": {
+        "en": "culinarian"
+      },
+      "Abbreviation": {
+        "en": "CUL"
+      },
+      "Role": "None",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 16,
+      "Name": {
+        "en": "miner"
+      },
+      "Abbreviation": {
+        "en": "MIN"
+      },
+      "Role": "None",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 17,
+      "Name": {
+        "en": "botanist"
+      },
+      "Abbreviation": {
+        "en": "BTN"
+      },
+      "Role": "None",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 18,
+      "Name": {
+        "en": "fisher"
+      },
+      "Abbreviation": {
+        "en": "FSH"
+      },
+      "Role": "None",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 26,
+      "Name": {
+        "en": "arcanist"
+      },
+      "Abbreviation": {
+        "en": "ACN"
+      },
+      "Role": "Magical Ranged DPS",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 29,
+      "Name": {
+        "en": "rogue"
+      },
+      "Abbreviation": {
+        "en": "ROG"
+      },
+      "Role": "Melee DPS",
+      "IsJob": false,
+      "IsLimited": false,
+      "JobIndex": 0
+    },
+    {
+      "RowId": 19,
+      "Name": {
+        "en": "paladin"
+      },
+      "Abbreviation": {
+        "en": "PLD"
+      },
+      "Role": "Tank",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 1
+    },
+    {
+      "RowId": 20,
+      "Name": {
+        "en": "monk"
+      },
+      "Abbreviation": {
+        "en": "MNK"
+      },
+      "Role": "Melee DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 2
+    },
+    {
+      "RowId": 21,
+      "Name": {
+        "en": "warrior"
+      },
+      "Abbreviation": {
+        "en": "WAR"
+      },
+      "Role": "Tank",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 3
+    },
+    {
+      "RowId": 22,
+      "Name": {
+        "en": "dragoon"
+      },
+      "Abbreviation": {
+        "en": "DRG"
+      },
+      "Role": "Melee DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 4
+    },
+    {
+      "RowId": 23,
+      "Name": {
+        "en": "bard"
+      },
+      "Abbreviation": {
+        "en": "BRD"
+      },
+      "Role": "Physical Ranged DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 5
+    },
+    {
+      "RowId": 24,
+      "Name": {
+        "en": "white mage"
+      },
+      "Abbreviation": {
+        "en": "WHM"
+      },
+      "Role": "Healer",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 6
+    },
+    {
+      "RowId": 25,
+      "Name": {
+        "en": "black mage"
+      },
+      "Abbreviation": {
+        "en": "BLM"
+      },
+      "Role": "Magical Ranged DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 7
+    },
+    {
+      "RowId": 27,
+      "Name": {
+        "en": "summoner"
+      },
+      "Abbreviation": {
+        "en": "SMN"
+      },
+      "Role": "Magical Ranged DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 8
+    },
+    {
+      "RowId": 28,
+      "Name": {
+        "en": "scholar"
+      },
+      "Abbreviation": {
+        "en": "SCH"
+      },
+      "Role": "Healer",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 9
+    },
+    {
+      "RowId": 30,
+      "Name": {
+        "en": "ninja"
+      },
+      "Abbreviation": {
+        "en": "NIN"
+      },
+      "Role": "Melee DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 10
+    },
+    {
+      "RowId": 31,
+      "Name": {
+        "en": "machinist"
+      },
+      "Abbreviation": {
+        "en": "MCH"
+      },
+      "Role": "Physical Ranged DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 11
+    },
+    {
+      "RowId": 32,
+      "Name": {
+        "en": "dark knight"
+      },
+      "Abbreviation": {
+        "en": "DRK"
+      },
+      "Role": "Tank",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 12
+    },
+    {
+      "RowId": 33,
+      "Name": {
+        "en": "astrologian"
+      },
+      "Abbreviation": {
+        "en": "AST"
+      },
+      "Role": "Healer",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 13
+    },
+    {
+      "RowId": 34,
+      "Name": {
+        "en": "samurai"
+      },
+      "Abbreviation": {
+        "en": "SAM"
+      },
+      "Role": "Melee DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 14
+    },
+    {
+      "RowId": 35,
+      "Name": {
+        "en": "red mage"
+      },
+      "Abbreviation": {
+        "en": "RDM"
+      },
+      "Role": "Magical Ranged DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 15
+    },
+    {
+      "RowId": 36,
+      "Name": {
+        "en": "blue mage"
+      },
+      "Abbreviation": {
+        "en": "BLU"
+      },
+      "Role": "Limited",
+      "IsJob": true,
+      "IsLimited": true,
+      "JobIndex": 16
+    },
+    {
+      "RowId": 37,
+      "Name": {
+        "en": "gunbreaker"
+      },
+      "Abbreviation": {
+        "en": "GNB"
+      },
+      "Role": "Tank",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 17
+    },
+    {
+      "RowId": 38,
+      "Name": {
+        "en": "dancer"
+      },
+      "Abbreviation": {
+        "en": "DNC"
+      },
+      "Role": "Physical Ranged DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 18
+    },
+    {
+      "RowId": 39,
+      "Name": {
+        "en": "reaper"
+      },
+      "Abbreviation": {
+        "en": "RPR"
+      },
+      "Role": "Melee DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 19
+    },
+    {
+      "RowId": 40,
+      "Name": {
+        "en": "sage"
+      },
+      "Abbreviation": {
+        "en": "SGE"
+      },
+      "Role": "Healer",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 20
+    },
+    {
+      "RowId": 41,
+      "Name": {
+        "en": "viper"
+      },
+      "Abbreviation": {
+        "en": "VPR"
+      },
+      "Role": "Melee DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 21
+    },
+    {
+      "RowId": 42,
+      "Name": {
+        "en": "pictomancer"
+      },
+      "Abbreviation": {
+        "en": "PCT"
+      },
+      "Role": "Magical Ranged DPS",
+      "IsJob": true,
+      "IsLimited": false,
+      "JobIndex": 22
+    }
+  ],
+  "GameVersion": "2026.03.17.0000.0000"
+}

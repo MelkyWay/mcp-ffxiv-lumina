@@ -1,0 +1,62 @@
+# Claude Code local settings
+.claude/
+
+# Build output
+bin/
+obj/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+project.lock.json
+project.fragment.lock.json
+
+# User-specific files
+*.user
+*.suo
+*.userprefs
+*.userosscache
+*.sln.docstates
+
+# Visual Studio
+.vs/
+*.rsuser
+
+# Rider
+.idea/
+
+# VS Code
+.vscode/
+
+# Test results and coverage
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage*/
+
+# Sonar scanner artifacts
+.sonarqube/
+.scannerwork/
+
+# Publish output
+publish/
+
+# Local config overrides (may contain game path or secrets)
+appsettings.*.json
+!appsettings.json
+
+# Editor swap/backup files
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Verify snapshot received files (only .verified.json is committed)
+*.received.json

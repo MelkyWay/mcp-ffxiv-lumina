@@ -1,0 +1,74 @@
+﻿{
+  "Category": "ultimate",
+  "LanguagesRequested": [
+    "en"
+  ],
+  "LanguagesReturned": [
+    "en"
+  ],
+  "FallbackUsed": false,
+  "Count": 6,
+  "Duties": [
+    {
+      "RowId": 280,
+      "Name": {
+        "en": "the Unending Coil of Bahamut (Ultimate)"
+      },
+      "Category": "ultimate",
+      "IsHighEndDuty": true,
+      "LevelRequired": 70,
+      "ItemLevelRequired": 0
+    },
+    {
+      "RowId": 539,
+      "Name": {
+        "en": "the Weapon\u0027s Refrain (Ultimate)"
+      },
+      "Category": "ultimate",
+      "IsHighEndDuty": true,
+      "LevelRequired": 70,
+      "ItemLevelRequired": 0
+    },
+    {
+      "RowId": 694,
+      "Name": {
+        "en": "the Epic of Alexander (Ultimate)"
+      },
+      "Category": "ultimate",
+      "IsHighEndDuty": true,
+      "LevelRequired": 80,
+      "ItemLevelRequired": 0
+    },
+    {
+      "RowId": 788,
+      "Name": {
+        "en": "Dragonsong\u0027s Reprise (Ultimate)"
+      },
+      "Category": "ultimate",
+      "IsHighEndDuty": true,
+      "LevelRequired": 90,
+      "ItemLevelRequired": 0
+    },
+    {
+      "RowId": 908,
+      "Name": {
+        "en": "the Omega Protocol (Ultimate)"
+      },
+      "Category": "ultimate",
+      "IsHighEndDuty": true,
+      "LevelRequired": 90,
+      "ItemLevelRequired": 0
+    },
+    {
+      "RowId": 1006,
+      "Name": {
+        "en": "Futures Rewritten (Ultimate)"
+      },
+      "Category": "ultimate",
+      "IsHighEndDuty": true,
+      "LevelRequired": 100,
+      "ItemLevelRequired": 0
+    }
+  ],
+  "GameVersion": "2026.03.17.0000.0000"
+}
