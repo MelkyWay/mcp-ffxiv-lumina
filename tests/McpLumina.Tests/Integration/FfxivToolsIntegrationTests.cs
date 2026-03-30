@@ -241,6 +241,78 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         Assert.Contains("ValidationError", json);
     }
 
+    // ── get_traits ────────────────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetTraits_NoFilter_ReturnsNonEmpty()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTraitsResponse(null, null);
+
+        Assert.True(response.TotalMatches > 0);
+        Assert.All(response.Traits, t => Assert.False(string.IsNullOrWhiteSpace(t.Name.GetValueOrDefault("en"))));
+        Assert.True(response.TotalMatches > 100, $"Expected >100 traits, got {response.TotalMatches}");
+    }
+
+    [SkippableFact]
+    public void GetTraits_ClassJobFilter_ReturnsOnlyThatJob()
+    {
+        SkipIfNoGamePath();
+
+        // White Mage = row ID 24
+        var response = BuildTraitsResponse(null, 24);
+
+        Assert.NotEmpty(response.Traits);
+        Assert.All(response.Traits, t => Assert.Equal(24u, t.ClassJobId));
+    }
+
+    [SkippableFact]
+    public void GetTraits_ClassJobFilter_OrderedByLevel()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTraitsResponse(null, 24, limit: 50);
+
+        var levels = response.Traits.Select(t => t.Level).ToList();
+        Assert.Equal(levels.OrderBy(l => l).ToList(), levels);
+    }
+
+    [SkippableFact]
+    public void GetTraits_QueryEnhancedHealingMagic_ContainsWhm()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTraitsResponse("Enhanced Healing Magic", null);
+
+        Assert.NotEmpty(response.Traits);
+        var whmTrait = response.Traits.FirstOrDefault(t => t.ClassJobId == 24u);
+        Assert.NotNull(whmTrait);
+        Assert.Equal(85u, whmTrait.Level);
+    }
+
+    [SkippableFact]
+    public void GetTraits_MultiLanguage_ReturnsBothLanguages()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTraitsResponse("Enhanced Healing Magic", 24, ["en", "ja"]);
+
+        Assert.NotEmpty(response.Traits);
+        var trait = response.Traits.First();
+        Assert.True(trait.Name.ContainsKey("ja"), "Trait should have a Japanese name.");
+        Assert.False(string.IsNullOrWhiteSpace(trait.Name["ja"]));
+    }
+
+    [SkippableFact]
+    public void GetTraits_NegativeClassJobId_Throws()
+    {
+        SkipIfNoGamePath();
+
+        var json = Tools.GetTraits(classJobId: -1);
+        Assert.Contains("ValidationError", json);
+    }
+
     // ── get_statuses ──────────────────────────────────────────────────────
 
     [SkippableFact]
@@ -371,6 +443,15 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
     {
         var json = Tools.GetDuties(category, string.Join(",", langs));
         return JsonSerializer.Deserialize<DutiesResponse>(json, DeserializeOpts)!;
+    }
+
+    private TraitsResponse BuildTraitsResponse(
+        string? query, int? classJobId,
+        string[]? langs = null, int? limit = null, int? offset = null)
+    {
+        var json = Tools.GetTraits(query, classJobId, limit, offset,
+            langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<TraitsResponse>(json, DeserializeOpts)!;
     }
 
     private StatusesResponse BuildStatusesResponse(

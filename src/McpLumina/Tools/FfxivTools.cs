@@ -104,6 +104,29 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             return ToolHelper.Ok(BuildActionsResponse(query, jobId < 0 ? null : (uint)jobId, lim, off, langs));
         });
 
+    // ── get_traits ───────────────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_traits")]
+    [Description(
+        "Returns passive job traits from the Trait sheet. " +
+        "Use classJobId to filter by job (ClassJob row ID, e.g. 24 for White Mage). " +
+        "Use query to filter by name substring. " +
+        "Results are ordered by level. Use limit and offset for pagination.")]
+    public string GetTraits(
+        [Description("Name substring to filter by (case-insensitive). Omit to return all traits up to limit.")] string? query = null,
+        [Description("Filter by ClassJob row ID, e.g. 24 for White Mage.")] int? classJobId = null,
+        [Description("Maximum number of results (1–200). Default 50.")] int? limit = null,
+        [Description("Number of results to skip for pagination. Default 0.")] int? offset = null,
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            var lim   = InputValidator.ValidateLimit(limit);
+            var off   = InputValidator.ValidateOffset(offset);
+            var jobId = InputValidator.ValidateClassJobId(classJobId);
+            var langs = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            return ToolHelper.Ok(BuildTraitsResponse(query, jobId < 0 ? null : (uint)jobId, lim, off, langs));
+        });
+
     // ── get_statuses ─────────────────────────────────────────────────────
 
     [McpServerTool(Name = "get_statuses")]
@@ -592,6 +615,80 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             Offset             = offset,
             Limit              = limit,
             Actions            = entries,
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private TraitsResponse BuildTraitsResponse(string? query, uint? classJobId, int limit, int offset, string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+
+        // Pass 1: scan primary language, apply filters, collect fields.
+        var allMatches = new List<(uint RowId, string Name, int Icon, uint ClassJobId, byte Level)>();
+
+        foreach (var row in GetSheet<Trait>(primaryLang))
+        {
+            var name = row.Name.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (classJobId.HasValue && row.ClassJob.RowId != classJobId.Value) continue;
+            if (query is not null && !name.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+
+            allMatches.Add((row.RowId, name, row.Icon, row.ClassJob.RowId, row.Level));
+        }
+
+        allMatches.Sort((a, b) =>
+        {
+            var lvl = a.Level.CompareTo(b.Level);
+            return lvl != 0 ? lvl : a.RowId.CompareTo(b.RowId);
+        });
+
+        var totalMatches = allMatches.Count;
+        var page         = allMatches.Skip(offset).Take(limit).ToList();
+
+        // Pass 2: secondary language names for page rows only.
+        var pageRowIds = new HashSet<uint>(page.Select(x => x.RowId));
+        var secondaryNames = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, string>();
+                    foreach (var row in GetSheet<Trait>(lang))
+                    {
+                        if (!pageRowIds.Contains(row.RowId)) continue;
+                        var n = row.Name.ToString();
+                        if (!string.IsNullOrWhiteSpace(n)) idx[row.RowId] = n;
+                    }
+                    return idx;
+                });
+
+        var entries = page.Select(m =>
+        {
+            var nameMap = new Dictionary<string, string> { [primaryLang] = m.Name };
+            foreach (var (lang, idx) in secondaryNames)
+                if (idx.TryGetValue(m.RowId, out var n)) nameMap[lang] = n;
+
+            return new TraitEntry(
+                RowId:      m.RowId,
+                Name:       nameMap,
+                Icon:       (uint)m.Icon,
+                ClassJobId: m.ClassJobId,
+                Level:      m.Level);
+        }).ToArray();
+
+        return new TraitsResponse
+        {
+            Query              = query,
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            TotalMatches       = totalMatches,
+            Offset             = offset,
+            Limit              = limit,
+            Traits             = entries,
             GameVersion        = gameData.GameVersion,
             Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
         };
