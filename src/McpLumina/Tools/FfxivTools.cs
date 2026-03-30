@@ -104,6 +104,48 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             return ToolHelper.Ok(BuildActionsResponse(query, jobId < 0 ? null : (uint)jobId, lim, off, langs));
         });
 
+    // ── get_mounts ───────────────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_mounts")]
+    [Description(
+        "Searches mounts from the Mount sheet. " +
+        "Use query to filter by name substring. " +
+        "isFlying indicates the mount can fly. " +
+        "extraSeats > 0 indicates a multi-seat mount. " +
+        "Use limit and offset for pagination.")]
+    public string GetMounts(
+        [Description("Name substring to filter by (case-insensitive). Omit to return all mounts up to limit.")] string? query = null,
+        [Description("Maximum number of results (1–200). Default 50.")] int? limit = null,
+        [Description("Number of results to skip for pagination. Default 0.")] int? offset = null,
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            var lim   = InputValidator.ValidateLimit(limit);
+            var off   = InputValidator.ValidateOffset(offset);
+            var langs = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            return ToolHelper.Ok(BuildMountsResponse(query, lim, off, langs));
+        });
+
+    // ── get_minions ──────────────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_minions")]
+    [Description(
+        "Searches minions (companions) from the Companion sheet. " +
+        "Use query to filter by name substring. " +
+        "Use limit and offset for pagination.")]
+    public string GetMinions(
+        [Description("Name substring to filter by (case-insensitive). Omit to return all minions up to limit.")] string? query = null,
+        [Description("Maximum number of results (1–200). Default 50.")] int? limit = null,
+        [Description("Number of results to skip for pagination. Default 0.")] int? offset = null,
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            var lim   = InputValidator.ValidateLimit(limit);
+            var off   = InputValidator.ValidateOffset(offset);
+            var langs = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            return ToolHelper.Ok(BuildMinionsResponse(query, lim, off, langs));
+        });
+
     // ── get_achievements ─────────────────────────────────────────────────
 
     [McpServerTool(Name = "get_achievements")]
@@ -636,6 +678,126 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             Offset             = offset,
             Limit              = limit,
             Actions            = entries,
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private MountsResponse BuildMountsResponse(string? query, int limit, int offset, string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+
+        var allMatches = new List<(uint RowId, string Name, uint Icon, byte IsFlying, byte ExtraSeats)>();
+
+        foreach (var row in GetSheet<Mount>(primaryLang))
+        {
+            var name = row.Singular.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (query is not null && !name.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+
+            allMatches.Add((row.RowId, name, (uint)row.Icon, row.IsFlying, row.ExtraSeats));
+        }
+
+        var totalMatches = allMatches.Count;
+        var page         = allMatches.Skip(offset).Take(limit).ToList();
+
+        var pageRowIds = new HashSet<uint>(page.Select(x => x.RowId));
+        var secondaryNames = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, string>();
+                    foreach (var row in GetSheet<Mount>(lang))
+                    {
+                        if (!pageRowIds.Contains(row.RowId)) continue;
+                        var n = row.Singular.ToString();
+                        if (!string.IsNullOrWhiteSpace(n)) idx[row.RowId] = n;
+                    }
+                    return idx;
+                });
+
+        var entries = page.Select(m =>
+        {
+            var nameMap = new Dictionary<string, string> { [primaryLang] = m.Name };
+            foreach (var (lang, idx) in secondaryNames)
+                if (idx.TryGetValue(m.RowId, out var n)) nameMap[lang] = n;
+
+            return new MountEntry(m.RowId, nameMap, m.Icon, m.IsFlying != 0, m.ExtraSeats);
+        }).ToArray();
+
+        return new MountsResponse
+        {
+            Query              = query,
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            TotalMatches       = totalMatches,
+            Offset             = offset,
+            Limit              = limit,
+            Mounts             = entries,
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private MinionsResponse BuildMinionsResponse(string? query, int limit, int offset, string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+
+        var allMatches = new List<(uint RowId, string Name, uint Icon)>();
+
+        foreach (var row in GetSheet<Companion>(primaryLang))
+        {
+            var name = row.Singular.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (query is not null && !name.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+
+            allMatches.Add((row.RowId, name, (uint)row.Icon));
+        }
+
+        var totalMatches = allMatches.Count;
+        var page         = allMatches.Skip(offset).Take(limit).ToList();
+
+        var pageRowIds = new HashSet<uint>(page.Select(x => x.RowId));
+        var secondaryNames = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, string>();
+                    foreach (var row in GetSheet<Companion>(lang))
+                    {
+                        if (!pageRowIds.Contains(row.RowId)) continue;
+                        var n = row.Singular.ToString();
+                        if (!string.IsNullOrWhiteSpace(n)) idx[row.RowId] = n;
+                    }
+                    return idx;
+                });
+
+        var entries = page.Select(m =>
+        {
+            var nameMap = new Dictionary<string, string> { [primaryLang] = m.Name };
+            foreach (var (lang, idx) in secondaryNames)
+                if (idx.TryGetValue(m.RowId, out var n)) nameMap[lang] = n;
+
+            return new MinionEntry(m.RowId, nameMap, m.Icon);
+        }).ToArray();
+
+        return new MinionsResponse
+        {
+            Query              = query,
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            TotalMatches       = totalMatches,
+            Offset             = offset,
+            Limit              = limit,
+            Minions            = entries,
             GameVersion        = gameData.GameVersion,
             Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
         };

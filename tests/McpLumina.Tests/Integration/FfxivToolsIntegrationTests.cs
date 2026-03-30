@@ -241,6 +241,114 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         Assert.Contains("ValidationError", json);
     }
 
+    // ── get_mounts ────────────────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetMounts_NoFilter_ReturnsNonEmpty()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMountsResponse(null);
+
+        Assert.True(response.TotalMatches > 0);
+        Assert.All(response.Mounts, m => Assert.False(string.IsNullOrWhiteSpace(m.Name.GetValueOrDefault("en"))));
+        Assert.True(response.TotalMatches > 100, $"Expected >100 mounts, got {response.TotalMatches}");
+    }
+
+    [SkippableFact]
+    public void GetMounts_QueryChocobo_ContainsChocobo()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMountsResponse("Chocobo");
+
+        Assert.NotEmpty(response.Mounts);
+        Assert.All(response.Mounts, m =>
+            Assert.Contains("Chocobo", m.Name.GetValueOrDefault("en") ?? string.Empty,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    [SkippableFact]
+    public void GetMounts_FlyingMountsExist()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMountsResponse(null, limit: 200);
+
+        Assert.Contains(response.Mounts, m => m.IsFlying);
+    }
+
+    [SkippableFact]
+    public void GetMounts_MultiSeatMountsExist()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMountsResponse(null, limit: 200);
+
+        Assert.Contains(response.Mounts, m => m.ExtraSeats > 0);
+    }
+
+    [SkippableFact]
+    public void GetMounts_MultiLanguage_ReturnsBothLanguages()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMountsResponse("Chocobo", langs: ["en", "ja"]);
+
+        var mount = response.Mounts.First();
+        Assert.True(mount.Name.ContainsKey("ja"), "Mount should have a Japanese name.");
+        Assert.False(string.IsNullOrWhiteSpace(mount.Name["ja"]));
+    }
+
+    // ── get_minions ───────────────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetMinions_NoFilter_ReturnsNonEmpty()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMinionsResponse(null);
+
+        Assert.True(response.TotalMatches > 0);
+        Assert.All(response.Minions, m => Assert.False(string.IsNullOrWhiteSpace(m.Name.GetValueOrDefault("en"))));
+        Assert.True(response.TotalMatches > 100, $"Expected >100 minions, got {response.TotalMatches}");
+    }
+
+    [SkippableFact]
+    public void GetMinions_QueryBahamut_ContainsBahamut()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMinionsResponse("Bahamut");
+
+        Assert.NotEmpty(response.Minions);
+        Assert.All(response.Minions, m =>
+            Assert.Contains("Bahamut", m.Name.GetValueOrDefault("en") ?? string.Empty,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    [SkippableFact]
+    public void GetMinions_MultiLanguage_ReturnsBothLanguages()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMinionsResponse("Bahamut", langs: ["en", "ja"]);
+
+        var minion = response.Minions.First();
+        Assert.True(minion.Name.ContainsKey("ja"), "Minion should have a Japanese name.");
+        Assert.False(string.IsNullOrWhiteSpace(minion.Name["ja"]));
+    }
+
+    [SkippableFact]
+    public void GetMinions_AllHaveIcons()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMinionsResponse(null, limit: 50);
+
+        Assert.All(response.Minions, m => Assert.True(m.Icon > 0, $"Minion '{m.Name.GetValueOrDefault("en")}' has no icon."));
+    }
+
     // ── get_achievements ──────────────────────────────────────────────────
 
     [SkippableFact]
@@ -514,6 +622,22 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
     {
         var json = Tools.GetDuties(category, string.Join(",", langs));
         return JsonSerializer.Deserialize<DutiesResponse>(json, DeserializeOpts)!;
+    }
+
+    private MountsResponse BuildMountsResponse(
+        string? query, string[]? langs = null, int? limit = null, int? offset = null)
+    {
+        var json = Tools.GetMounts(query, limit, offset,
+            langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<MountsResponse>(json, DeserializeOpts)!;
+    }
+
+    private MinionsResponse BuildMinionsResponse(
+        string? query, string[]? langs = null, int? limit = null, int? offset = null)
+    {
+        var json = Tools.GetMinions(query, limit, offset,
+            langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<MinionsResponse>(json, DeserializeOpts)!;
     }
 
     private AchievementsResponse BuildAchievementsResponse(
