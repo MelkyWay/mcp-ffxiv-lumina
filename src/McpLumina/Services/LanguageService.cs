@@ -55,11 +55,9 @@ public sealed class LanguageService
         if (list.Length == 0)
             return [_defaultLanguage];
 
-        foreach (var lang in list)
-        {
-            if (!CodeToLumina.ContainsKey(lang))
-                throw new LanguageUnavailableException(lang);
-        }
+        var invalid = list.FirstOrDefault(lang => !CodeToLumina.ContainsKey(lang));
+        if (invalid is not null)
+            throw new LanguageUnavailableException(invalid);
 
         return list;
     }

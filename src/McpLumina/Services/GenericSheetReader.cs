@@ -56,10 +56,6 @@ public sealed class GenericSheetReader(GameData gameData)
 
             return sheet;
         }
-        catch (SheetNotFoundException)
-        {
-            throw;
-        }
         catch (Lumina.Excel.Exceptions.SheetNotFoundException)
         {
             // Lumina 7 throws its own SheetNotFoundException for unknown sheets;

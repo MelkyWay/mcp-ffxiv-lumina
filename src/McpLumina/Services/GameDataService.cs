@@ -253,12 +253,9 @@ public sealed class GameDataService : IDisposable
         var returnIndices = ResolveReturnFields(sheetName, returnFields, sheet.Columns.Count, schemaNames);
 
         // Single pass through the sheet to collect all requested rows.
-        var found = new Dictionary<uint, RawRow>();
-        foreach (var row in _genericReader.ReadAllRows(sheet))
-        {
-            if (wanted.Contains(row.RowId))
-                found[row.RowId] = row;
-        }
+        var found = _genericReader.ReadAllRows(sheet)
+            .Where(row => wanted.Contains(row.RowId))
+            .ToDictionary(row => row.RowId, row => row);
 
         var rows       = new List<RowResponse>();
         var missingIds = new List<uint>();
@@ -521,14 +518,12 @@ public sealed class GameDataService : IDisposable
             Path.Combine(_config.GamePath, "ffxivgame.ver"),
         };
 
-        foreach (var path in candidates)
+        var path = candidates.FirstOrDefault(File.Exists);
+        if (path is not null)
         {
-            if (File.Exists(path))
-            {
-                var version = File.ReadAllText(path).Trim();
-                _logger.LogInformation("Detected game version: {Version}", version);
-                return version;
-            }
+            var version = File.ReadAllText(path).Trim();
+            _logger.LogInformation("Detected game version: {Version}", version);
+            return version;
         }
 
         _logger.LogWarning("Could not detect game version (ffxivgame.ver not found).");

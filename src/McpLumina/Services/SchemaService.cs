@@ -159,7 +159,7 @@ public sealed class SchemaService
         if (_schemaRoot is null) return null;
         // Use GetOrAdd; factory may be called more than once under contention but will
         // always produce the same result since column count is fixed per sheet.
-        return _cache.GetOrAdd(sheetName, _ => LoadSchema(sheetName, columnCount));
+        return _cache.GetOrAdd(sheetName, s => LoadSchema(s, columnCount));
     }
 
     // ── Private: loading + flattening ─────────────────────────────────────
