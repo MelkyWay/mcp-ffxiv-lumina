@@ -1,6 +1,7 @@
 using System.Text.Json;
 using McpLumina.Constants;
 using McpLumina.Models.Responses;
+using McpLumina.Tools;
 using VerifyXunit;
 using Xunit;
 
@@ -920,5 +921,41 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
     {
         var json = Tools.GetCurrencies(langs is null ? null : string.Join(",", langs));
         return JsonSerializer.Deserialize<CurrenciesResponse>(json, DeserializeOpts)!;
+    }
+
+    // ── health / list_languages ────────────────────────────────────────────
+
+    [SkippableFact]
+    public void Health_ReturnsOkStatus()
+    {
+        SkipIfNoGamePath();
+
+        var health = new HealthTool(GameData);
+        var json   = health.Health();
+
+        var response = JsonSerializer.Deserialize<HealthResponse>(json, DeserializeOpts)!;
+        Assert.Equal("ok", response.Status);
+        Assert.False(string.IsNullOrWhiteSpace(response.DetectedVersion),
+            "DetectedVersion should be populated.");
+        Assert.False(string.IsNullOrWhiteSpace(response.GamePath),
+            "GamePath should be populated.");
+        Assert.True(response.UptimeSeconds >= 0, "UptimeSeconds should be non-negative.");
+    }
+
+    [SkippableFact]
+    public void ListLanguages_ContainsEnglish()
+    {
+        SkipIfNoGamePath();
+
+        var health = new HealthTool(GameData);
+        var json   = health.ListLanguages();
+
+        var response = JsonSerializer.Deserialize<LanguagesResponse>(json, DeserializeOpts)!;
+        Assert.NotEmpty(response.Languages);
+
+        var en = response.Languages.FirstOrDefault(l => l.Code == "en");
+        Assert.NotNull(en);
+        Assert.True(en.Available, "English should be available in any FFXIV installation.");
+        Assert.Equal("English", en.DisplayName);
     }
 }
