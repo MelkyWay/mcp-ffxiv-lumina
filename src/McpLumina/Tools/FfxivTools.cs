@@ -215,6 +215,97 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             return ToolHelper.Ok(BuildStatusesResponse(query, category, lim, off, langs));
         });
 
+    // ── get_races ─────────────────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_races")]
+    [Description(
+        "Returns all playable races from the Race sheet. " +
+        "Each race has a masculine and feminine name (may differ depending on language). " +
+        "Row IDs: 1=Hyur, 2=Elezen, 3=Lalafell, 4=Miqo'te, 5=Roegadyn, 6=Au Ra, 7=Hrothgar, 8=Viera.")]
+    public string GetRaces(
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            var langs    = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            var cacheKey = $"get_races:{string.Join(",", langs)}";
+            return cache.GetOrCreate(cacheKey, () => ToolHelper.Ok(BuildRacesResponse(langs)));
+        });
+
+    // ── get_worlds ────────────────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_worlds")]
+    [Description(
+        "Returns game worlds (servers) from the World sheet. " +
+        "Only public player-accessible worlds are returned (IsPublic=true). " +
+        "DataCenterName reflects the data centre the world belongs to. " +
+        "Use query to filter by world name substring. " +
+        "World names are English-only (proper nouns, same across all languages).")]
+    public string GetWorlds(
+        [Description("World name substring to filter by (case-insensitive). Omit to return all public worlds.")] string? query = null) =>
+        ToolHelper.Execute(() =>
+        {
+            var cacheKey = $"get_worlds:{query ?? "all"}";
+            return cache.GetOrCreate(cacheKey, () => ToolHelper.Ok(BuildWorldsResponse(query)));
+        });
+
+    // ── get_weather ───────────────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_weather")]
+    [Description(
+        "Searches weather types from the Weather sheet. " +
+        "Use query to filter by name substring. " +
+        "Use limit and offset for pagination.")]
+    public string GetWeather(
+        [Description("Name substring to filter by (case-insensitive). Omit to return all weather types up to limit.")] string? query = null,
+        [Description("Maximum number of results (1–200). Default 50.")] int? limit = null,
+        [Description("Number of results to skip for pagination. Default 0.")] int? offset = null,
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            var lim   = InputValidator.ValidateLimit(limit);
+            var off   = InputValidator.ValidateOffset(offset);
+            var langs = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            return ToolHelper.Ok(BuildWeatherResponse(query, lim, off, langs));
+        });
+
+    // ── get_titles ────────────────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_titles")]
+    [Description(
+        "Searches player titles from the Title sheet. " +
+        "Each title has a masculine and feminine form. " +
+        "IsPrefix=true means the title appears before the character name; false means after. " +
+        "Use query to filter by title text substring. " +
+        "Use limit and offset for pagination.")]
+    public string GetTitles(
+        [Description("Title text substring to filter by (case-insensitive, matches masculine or feminine form). Omit to return all titles up to limit.")] string? query = null,
+        [Description("Maximum number of results (1–200). Default 50.")] int? limit = null,
+        [Description("Number of results to skip for pagination. Default 0.")] int? offset = null,
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            var lim   = InputValidator.ValidateLimit(limit);
+            var off   = InputValidator.ValidateOffset(offset);
+            var langs = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            return ToolHelper.Ok(BuildTitlesResponse(query, lim, off, langs));
+        });
+
+    // ── get_currencies ────────────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_currencies")]
+    [Description(
+        "Returns in-game currencies (Gil, tomestones, seals, etc.) from the Item sheet. " +
+        "Currencies are identified by ItemUICategory=63, FilterGroup=16, StackSize>1. " +
+        "StackSize indicates the maximum a player can hold (e.g. 999999999 for Gil, 2000 for tomestones).")]
+    public string GetCurrencies(
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            var langs    = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            var cacheKey = $"get_currencies:{string.Join(",", langs)}";
+            return cache.GetOrCreate(cacheKey, () => ToolHelper.Ok(BuildCurrenciesResponse(langs)));
+        });
+
     // ── get_localized_labels ─────────────────────────────────────────────
 
     [McpServerTool(Name = "get_localized_labels")]
@@ -1062,6 +1153,295 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             Offset             = offset,
             Limit              = limit,
             Statuses           = entries,
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    // ── New builders ─────────────────────────────────────────────────────
+
+    private RacesResponse BuildRacesResponse(string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+
+        // Small sheet — load all languages at once (same pattern as BuildJobsResponse).
+        var langData = returned.ToDictionary(
+            lang => lang,
+            lang =>
+            {
+                var idx = new Dictionary<uint, (string Masc, string Fem)>();
+                foreach (var row in GetSheet<Race>(lang))
+                {
+                    if (row.RowId == 0) continue;
+                    var m = row.Masculine.ToString();
+                    if (!string.IsNullOrWhiteSpace(m))
+                        idx[row.RowId] = (m, row.Feminine.ToString());
+                }
+                return idx;
+            });
+
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var entries     = new List<RaceEntry>();
+
+        foreach (var row in GetSheet<Race>(primaryLang))
+        {
+            if (row.RowId == 0) continue;
+            if (!langData[primaryLang].ContainsKey(row.RowId)) continue;
+
+            var mascMap = new Dictionary<string, string>();
+            var femMap  = new Dictionary<string, string>();
+            foreach (var (lang, idx) in langData)
+            {
+                if (idx.TryGetValue(row.RowId, out var data))
+                {
+                    mascMap[lang] = data.Masc;
+                    femMap[lang]  = data.Fem;
+                }
+            }
+            entries.Add(new RaceEntry(row.RowId, mascMap, femMap));
+        }
+
+        return new RacesResponse
+        {
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            Races              = entries.ToArray(),
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private WorldsResponse BuildWorldsResponse(string? query)
+    {
+        // World names are proper nouns — same in all languages; use "en" only.
+        // Pre-index DataCenter names from WorldDCGroupType.
+        var dcNames = new Dictionary<uint, string>();
+        foreach (var dc in GetSheet<WorldDCGroupType>("en"))
+        {
+            var n = dc.Name.ToString();
+            if (!string.IsNullOrWhiteSpace(n)) dcNames[dc.RowId] = n;
+        }
+
+        var allMatches = new List<(uint RowId, string Name, string InternalName,
+                                   uint DataCenterId, bool IsPublic)>();
+
+        foreach (var row in GetSheet<World>("en"))
+        {
+            if (!row.IsPublic) continue;
+            var name = row.Name.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (query is not null && !name.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+
+            allMatches.Add((row.RowId, name, row.InternalName.ToString(),
+                            row.DataCenter.RowId, row.IsPublic));
+        }
+
+        var entries = allMatches
+            .Select(m => new WorldEntry(
+                RowId:          m.RowId,
+                Name:           m.Name,
+                InternalName:   m.InternalName,
+                DataCenterId:   m.DataCenterId,
+                DataCenterName: dcNames.GetValueOrDefault(m.DataCenterId, string.Empty),
+                IsPublic:       m.IsPublic))
+            .ToArray();
+
+        return new WorldsResponse
+        {
+            Query        = query,
+            TotalMatches = entries.Length,
+            Worlds       = entries,
+            GameVersion  = gameData.GameVersion,
+            Timestamp    = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private WeatherResponse BuildWeatherResponse(string? query, int limit, int offset, string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+
+        var allMatches = new List<(uint RowId, string Name, uint Icon)>();
+
+        foreach (var row in GetSheet<Weather>(primaryLang))
+        {
+            var name = row.Name.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (query is not null && !name.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+
+            allMatches.Add((row.RowId, name, (uint)row.Icon));
+        }
+
+        var totalMatches = allMatches.Count;
+        var page         = allMatches.Skip(offset).Take(limit).ToList();
+
+        var pageRowIds = new HashSet<uint>(page.Select(x => x.RowId));
+        var secondaryNames = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, string>();
+                    foreach (var row in GetSheet<Weather>(lang))
+                    {
+                        if (!pageRowIds.Contains(row.RowId)) continue;
+                        var n = row.Name.ToString();
+                        if (!string.IsNullOrWhiteSpace(n)) idx[row.RowId] = n;
+                    }
+                    return idx;
+                });
+
+        var entries = page.Select(m =>
+        {
+            var nameMap = new Dictionary<string, string> { [primaryLang] = m.Name };
+            foreach (var (lang, idx) in secondaryNames)
+                if (idx.TryGetValue(m.RowId, out var n)) nameMap[lang] = n;
+
+            return new WeatherEntry(m.RowId, nameMap, m.Icon);
+        }).ToArray();
+
+        return new WeatherResponse
+        {
+            Query              = query,
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            TotalMatches       = totalMatches,
+            Offset             = offset,
+            Limit              = limit,
+            Weathers           = entries,
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private TitlesResponse BuildTitlesResponse(string? query, int limit, int offset, string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+
+        var allMatches = new List<(uint RowId, string Masc, string Fem, bool IsPrefix)>();
+
+        foreach (var row in GetSheet<Title>(primaryLang))
+        {
+            var masc = row.Masculine.ToString();
+            var fem  = row.Feminine.ToString();
+            // Skip empty rows (both masculine and feminine empty).
+            if (string.IsNullOrWhiteSpace(masc) && string.IsNullOrWhiteSpace(fem)) continue;
+            // Query matches either form.
+            if (query is not null
+                && !masc.Contains(query, StringComparison.OrdinalIgnoreCase)
+                && !fem.Contains(query,  StringComparison.OrdinalIgnoreCase)) continue;
+
+            allMatches.Add((row.RowId, masc, fem, row.IsPrefix));
+        }
+
+        var totalMatches = allMatches.Count;
+        var page         = allMatches.Skip(offset).Take(limit).ToList();
+
+        var pageRowIds = new HashSet<uint>(page.Select(x => x.RowId));
+        var secondaryStrings = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, (string Masc, string Fem)>();
+                    foreach (var row in GetSheet<Title>(lang))
+                    {
+                        if (!pageRowIds.Contains(row.RowId)) continue;
+                        idx[row.RowId] = (row.Masculine.ToString(), row.Feminine.ToString());
+                    }
+                    return idx;
+                });
+
+        var entries = page.Select(m =>
+        {
+            var mascMap = new Dictionary<string, string> { [primaryLang] = m.Masc };
+            var femMap  = new Dictionary<string, string> { [primaryLang] = m.Fem };
+            foreach (var (lang, idx) in secondaryStrings)
+            {
+                if (idx.TryGetValue(m.RowId, out var s))
+                {
+                    mascMap[lang] = s.Masc;
+                    femMap[lang]  = s.Fem;
+                }
+            }
+            return new TitleEntry(m.RowId, mascMap, femMap, m.IsPrefix);
+        }).ToArray();
+
+        return new TitlesResponse
+        {
+            Query              = query,
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            TotalMatches       = totalMatches,
+            Offset             = offset,
+            Limit              = limit,
+            Titles             = entries,
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private CurrenciesResponse BuildCurrenciesResponse(string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+
+        // Currencies: ItemUICategory=63, FilterGroup=16, StackSize>1.
+        // UIcat=63 alone is too broad (includes bardings, floatstones, etc.).
+        // FilterGroup=16 removes non-currency "Other" items. StackSize>1 removes
+        // single-use/equipment items that share the same category (e.g. bardings, StackSize=1).
+        var allMatches = new List<(uint RowId, string Name, uint Icon, uint StackSize)>();
+
+        foreach (var row in GetSheet<Item>(primaryLang))
+        {
+            if (row.ItemUICategory.RowId != 63) continue;
+            if (row.FilterGroup != 16) continue;
+            if (row.StackSize <= 1) continue;
+            var name = row.Name.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+
+            allMatches.Add((row.RowId, name, row.Icon, row.StackSize));
+        }
+
+        // Collect secondary language names for all matched rows.
+        var matchedRowIds = new HashSet<uint>(allMatches.Select(x => x.RowId));
+        var secondaryNames = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, string>();
+                    foreach (var row in GetSheet<Item>(lang))
+                    {
+                        if (!matchedRowIds.Contains(row.RowId)) continue;
+                        var n = row.Name.ToString();
+                        if (!string.IsNullOrWhiteSpace(n)) idx[row.RowId] = n;
+                    }
+                    return idx;
+                });
+
+        var entries = allMatches.Select(m =>
+        {
+            var nameMap = new Dictionary<string, string> { [primaryLang] = m.Name };
+            foreach (var (lang, idx) in secondaryNames)
+                if (idx.TryGetValue(m.RowId, out var n)) nameMap[lang] = n;
+
+            return new CurrencyEntry(m.RowId, nameMap, m.Icon, m.StackSize);
+        }).ToArray();
+
+        return new CurrenciesResponse
+        {
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            Currencies         = entries,
             GameVersion        = gameData.GameVersion,
             Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
         };

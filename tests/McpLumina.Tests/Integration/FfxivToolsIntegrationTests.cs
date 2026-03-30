@@ -586,6 +586,219 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         Assert.Contains("ValidationError", json);
     }
 
+    // ── get_races ──────────────────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetRaces_English_ContainsAllBaseRaces()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildRacesResponse(["en"]);
+
+        Assert.NotEmpty(response.Races);
+        // There are 8 playable races.
+        Assert.Equal(8, response.Races.Length);
+    }
+
+    [SkippableFact]
+    public void GetRaces_English_HyurHasMasculineAndFeminineNames()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildRacesResponse(["en"]);
+
+        var hyur = response.Races.FirstOrDefault(r => r.RowId == 1);
+        Assert.NotNull(hyur);
+        Assert.True(hyur.Masculine.ContainsKey("en"));
+        Assert.True(hyur.Feminine.ContainsKey("en"));
+        Assert.Equal("Hyur", hyur.Masculine["en"], ignoreCase: true);
+    }
+
+    [SkippableFact]
+    public void GetRaces_MultiLanguage_ContainsJapanese()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildRacesResponse(["en", "ja"]);
+
+        var miqote = response.Races.FirstOrDefault(r => r.RowId == 4);
+        Assert.NotNull(miqote);
+        Assert.True(miqote.Masculine.ContainsKey("ja"), "Miqo'te should have a Japanese masculine name.");
+        Assert.False(string.IsNullOrWhiteSpace(miqote.Masculine["ja"]));
+    }
+
+    // ── get_worlds ─────────────────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetWorlds_All_ReturnsPublicServers()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildWorldsResponse();
+
+        Assert.True(response.TotalMatches > 50, "Expected many public worlds.");
+        Assert.All(response.Worlds, w => Assert.True(w.IsPublic));
+    }
+
+    [SkippableFact]
+    public void GetWorlds_All_DataCenterNamesPopulated()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildWorldsResponse();
+
+        Assert.All(response.Worlds, w =>
+            Assert.False(string.IsNullOrWhiteSpace(w.DataCenterName),
+                $"World '{w.Name}' has empty DataCenterName."));
+    }
+
+    [SkippableFact]
+    public void GetWorlds_QueryAether_ReturnsAetherServers()
+    {
+        SkipIfNoGamePath();
+
+        // "Cactuar" is a known Aether DC server.
+        var response = BuildWorldsResponse(query: "Cactuar");
+
+        Assert.NotEmpty(response.Worlds);
+        var cactuar = response.Worlds.FirstOrDefault(w =>
+            w.Name.Equals("Cactuar", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(cactuar);
+        Assert.Equal("Aether", cactuar.DataCenterName, ignoreCase: true);
+    }
+
+    // ── get_weather ────────────────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetWeather_All_ReturnsNonEmpty()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildWeatherResponse(null, limit: 10);
+
+        Assert.NotEmpty(response.Weathers);
+        Assert.True(response.TotalMatches > 10);
+    }
+
+    [SkippableFact]
+    public void GetWeather_QueryClear_ReturnsClearSkies()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildWeatherResponse("clear");
+
+        var clearSkies = response.Weathers.FirstOrDefault(w =>
+            w.Name.GetValueOrDefault("en")?.Contains("clear", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.NotNull(clearSkies);
+        Assert.True(clearSkies.Icon > 0, "Clear Skies should have a non-zero icon ID.");
+    }
+
+    [SkippableFact]
+    public void GetWeather_MultiLanguage_ContainsJapanese()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildWeatherResponse("rain", langs: ["en", "ja"]);
+
+        Assert.NotEmpty(response.Weathers);
+        var first = response.Weathers.First();
+        Assert.True(first.Name.ContainsKey("ja"), "Rain weather should have a Japanese name.");
+        Assert.False(string.IsNullOrWhiteSpace(first.Name["ja"]));
+    }
+
+    // ── get_titles ─────────────────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetTitles_All_ReturnsNonEmpty()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTitlesResponse(null, limit: 10);
+
+        Assert.NotEmpty(response.Titles);
+        Assert.True(response.TotalMatches > 100);
+    }
+
+    [SkippableFact]
+    public void GetTitles_QueryInsatiable_ReturnsMatch()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTitlesResponse("Insatiable");
+
+        Assert.NotEmpty(response.Titles);
+        var title = response.Titles.First();
+        Assert.True(
+            title.Masculine.GetValueOrDefault("en")?.Contains("Insatiable", StringComparison.OrdinalIgnoreCase) == true ||
+            title.Feminine.GetValueOrDefault("en")?.Contains("Insatiable", StringComparison.OrdinalIgnoreCase)  == true);
+    }
+
+    [SkippableFact]
+    public void GetTitles_HasPrefixAndSuffixTitles()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTitlesResponse(null, limit: 200);
+
+        Assert.True(response.Titles.Any(t =>  t.IsPrefix), "Expected at least one prefix title.");
+        Assert.True(response.Titles.Any(t => !t.IsPrefix), "Expected at least one suffix title.");
+    }
+
+    [SkippableFact]
+    public void GetTitles_MultiLanguage_ContainsJapanese()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTitlesResponse("Insatiable", langs: ["en", "ja"]);
+
+        Assert.NotEmpty(response.Titles);
+        var title = response.Titles.First();
+        Assert.True(title.Masculine.ContainsKey("ja") || title.Feminine.ContainsKey("ja"),
+            "Title should have a Japanese form.");
+    }
+
+    // ── get_currencies ─────────────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetCurrencies_ContainsGil()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildCurrenciesResponse(["en"]);
+
+        var gil = response.Currencies.FirstOrDefault(c =>
+            c.Name.GetValueOrDefault("en")?.Equals("Gil", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.NotNull(gil);
+        Assert.Equal(1u, gil.RowId);
+        Assert.Equal(999999999u, gil.StackSize);
+    }
+
+    [SkippableFact]
+    public void GetCurrencies_ContainsTomestone()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildCurrenciesResponse(["en"]);
+
+        var tomestone = response.Currencies.FirstOrDefault(c =>
+            c.Name.GetValueOrDefault("en")?.Contains("tomestone", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.NotNull(tomestone);
+        Assert.True(tomestone.StackSize > 0);
+    }
+
+    [SkippableFact]
+    public void GetCurrencies_MultiLanguage_GilHasJapaneseName()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildCurrenciesResponse(["en", "ja"]);
+
+        var gil = response.Currencies.FirstOrDefault(c => c.RowId == 1);
+        Assert.NotNull(gil);
+        Assert.True(gil.Name.ContainsKey("ja"), "Gil should have a Japanese name.");
+        Assert.False(string.IsNullOrWhiteSpace(gil.Name["ja"]));
+    }
+
     // ── Localized string correctness ──────────────────────────────────────
 
     [SkippableTheory]
@@ -673,5 +886,39 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         var json = Tools.GetActions(query, classJobId, limit, offset,
             langs is null ? null : string.Join(",", langs));
         return JsonSerializer.Deserialize<ActionsResponse>(json, DeserializeOpts)!;
+    }
+
+    private RacesResponse BuildRacesResponse(string[]? langs = null)
+    {
+        var json = Tools.GetRaces(langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<RacesResponse>(json, DeserializeOpts)!;
+    }
+
+    private WorldsResponse BuildWorldsResponse(string? query = null)
+    {
+        var json = Tools.GetWorlds(query);
+        return JsonSerializer.Deserialize<WorldsResponse>(json, DeserializeOpts)!;
+    }
+
+    private WeatherResponse BuildWeatherResponse(
+        string? query, string[]? langs = null, int? limit = null, int? offset = null)
+    {
+        var json = Tools.GetWeather(query, limit, offset,
+            langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<WeatherResponse>(json, DeserializeOpts)!;
+    }
+
+    private TitlesResponse BuildTitlesResponse(
+        string? query, string[]? langs = null, int? limit = null, int? offset = null)
+    {
+        var json = Tools.GetTitles(query, limit, offset,
+            langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<TitlesResponse>(json, DeserializeOpts)!;
+    }
+
+    private CurrenciesResponse BuildCurrenciesResponse(string[]? langs = null)
+    {
+        var json = Tools.GetCurrencies(langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<CurrenciesResponse>(json, DeserializeOpts)!;
     }
 }
