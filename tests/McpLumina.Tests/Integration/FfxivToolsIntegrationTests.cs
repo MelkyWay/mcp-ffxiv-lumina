@@ -241,6 +241,100 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         Assert.Contains("ValidationError", json);
     }
 
+    // ── get_statuses ──────────────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetStatuses_NoFilter_ReturnsNamedStatuses()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildStatusesResponse(null, null);
+
+        Assert.True(response.TotalMatches > 0);
+        Assert.All(response.Statuses, s => Assert.False(string.IsNullOrWhiteSpace(s.Name.GetValueOrDefault("en"))));
+        Assert.True(response.TotalMatches > 500, $"Expected >500 statuses, got {response.TotalMatches}");
+    }
+
+    [SkippableFact]
+    public void GetStatuses_QueryParalysis_IsDetrimental()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildStatusesResponse("Paralysis", null);
+
+        Assert.NotEmpty(response.Statuses);
+        var paralysis = response.Statuses.First();
+        Assert.Equal("detrimental", paralysis.StatusCategoryName);
+        Assert.Equal(2, paralysis.StatusCategory);
+        Assert.True(paralysis.CanDispel);
+    }
+
+    [SkippableFact]
+    public void GetStatuses_QueryMediated_IsBeneficial()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildStatusesResponse("Medicated", "beneficial");
+
+        Assert.NotEmpty(response.Statuses);
+        var medicated = response.Statuses.FirstOrDefault(s =>
+            s.Name.GetValueOrDefault("en")?.Equals("Medicated", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.NotNull(medicated);
+        Assert.Equal("beneficial", medicated.StatusCategoryName);
+        Assert.Equal(1, medicated.StatusCategory);
+    }
+
+    [SkippableFact]
+    public void GetStatuses_CategoryBeneficial_AllAreBeneficial()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildStatusesResponse(null, "beneficial", limit: 50);
+
+        Assert.NotEmpty(response.Statuses);
+        Assert.All(response.Statuses, s =>
+        {
+            Assert.Equal("beneficial", s.StatusCategoryName);
+            Assert.Equal(1, s.StatusCategory);
+        });
+    }
+
+    [SkippableFact]
+    public void GetStatuses_CategoryDetrimental_AllAreDetrimental()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildStatusesResponse(null, "detrimental", limit: 50);
+
+        Assert.NotEmpty(response.Statuses);
+        Assert.All(response.Statuses, s =>
+        {
+            Assert.Equal("detrimental", s.StatusCategoryName);
+            Assert.Equal(2, s.StatusCategory);
+        });
+    }
+
+    [SkippableFact]
+    public void GetStatuses_MultiLanguage_ReturnsBothLanguages()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildStatusesResponse("Paralysis", null, ["en", "ja"]);
+
+        var paralysis = response.Statuses.First();
+        Assert.True(paralysis.Name.ContainsKey("ja"), "Paralysis should have a Japanese name.");
+        Assert.False(string.IsNullOrWhiteSpace(paralysis.Name["ja"]));
+    }
+
+    [SkippableFact]
+    public void GetStatuses_InvalidCategory_ReturnsValidationError()
+    {
+        SkipIfNoGamePath();
+
+        var json = Tools.GetStatuses(category: "nonsense");
+        Assert.Contains("ValidationError", json);
+    }
+
     // ── Localized string correctness ──────────────────────────────────────
 
     [SkippableTheory]
@@ -277,6 +371,15 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
     {
         var json = Tools.GetDuties(category, string.Join(",", langs));
         return JsonSerializer.Deserialize<DutiesResponse>(json, DeserializeOpts)!;
+    }
+
+    private StatusesResponse BuildStatusesResponse(
+        string? query, string? category,
+        string[]? langs = null, int? limit = null, int? offset = null)
+    {
+        var json = Tools.GetStatuses(query, category, limit, offset,
+            langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<StatusesResponse>(json, DeserializeOpts)!;
     }
 
     private ActionsResponse BuildActionsResponse(

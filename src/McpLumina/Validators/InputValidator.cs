@@ -83,6 +83,16 @@ public static partial class InputValidator
                 $"Allowed values: {string.Join(", ", DutyCategories.All)}.");
     }
 
+    public static void ValidateStatusCategory(string? category)
+    {
+        if (category is null) return;
+
+        if (!StatusCategories.All.Contains(category.ToLowerInvariant()))
+            throw new ValidationException(
+                $"category '{category}' is not valid. " +
+                $"Allowed values: {string.Join(", ", StatusCategories.All)}.");
+    }
+
     public static int ValidateClassJobId(int? classJobId)
     {
         if (classJobId is null) return -1;

@@ -127,6 +127,28 @@ public static class LabelKinds
         [Jobs, Roles, Categories, Ultimates, Criterion, Unreal];
 }
 
+/// <summary>
+/// StatusCategory byte values from the Status sheet.
+/// 1 = Detrimental (debuff), 2 = Beneficial (buff), others treated as Other.
+/// </summary>
+public static class StatusCategories
+{
+    public const byte Beneficial  = 1;
+    public const byte Detrimental = 2;
+
+    public const string DetrimentalLabel = "detrimental";
+    public const string BeneficialLabel  = "beneficial";
+
+    public static readonly IReadOnlyList<string> All = [DetrimentalLabel, BeneficialLabel];
+
+    public static string Resolve(byte category) => category switch
+    {
+        Detrimental => DetrimentalLabel,
+        Beneficial  => BeneficialLabel,
+        _ => "other",
+    };
+}
+
 public static class ServerInfo
 {
     public const string Version = "1.0.0";

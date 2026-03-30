@@ -104,6 +104,31 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             return ToolHelper.Ok(BuildActionsResponse(query, jobId < 0 ? null : (uint)jobId, lim, off, langs));
         });
 
+    // ── get_statuses ─────────────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_statuses")]
+    [Description(
+        "Searches status effects (buffs and debuffs) from the Status sheet. " +
+        "Use query to filter by name substring. Use category to filter by type: " +
+        "'beneficial' (buffs), 'detrimental' (debuffs), or omit for all. " +
+        "StatusCategory: 1=Detrimental, 2=Beneficial. " +
+        "MaxStacks=0 means the status is not stackable. " +
+        "Use limit and offset for pagination.")]
+    public string GetStatuses(
+        [Description("Name substring to filter by (case-insensitive). Omit to return all named statuses up to limit.")] string? query = null,
+        [Description("Category filter: beneficial | detrimental. Omit for all.")] string? category = null,
+        [Description("Maximum number of results (1–200). Default 50.")] int? limit = null,
+        [Description("Number of results to skip for pagination. Default 0.")] int? offset = null,
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            InputValidator.ValidateStatusCategory(category);
+            var lim   = InputValidator.ValidateLimit(limit);
+            var off   = InputValidator.ValidateOffset(offset);
+            var langs = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            return ToolHelper.Ok(BuildStatusesResponse(query, category, lim, off, langs));
+        });
+
     // ── get_localized_labels ─────────────────────────────────────────────
 
     [McpServerTool(Name = "get_localized_labels")]
@@ -567,6 +592,105 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             Offset             = offset,
             Limit              = limit,
             Actions            = entries,
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private StatusesResponse BuildStatusesResponse(string? query, string? category, int limit, int offset, string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+
+        byte? categoryFilter = category?.ToLowerInvariant() switch
+        {
+            StatusCategories.BeneficialLabel  => StatusCategories.Beneficial,
+            StatusCategories.DetrimentalLabel => StatusCategories.Detrimental,
+            _ => null,
+        };
+
+        // Pass 1: scan primary language, apply filters, collect all fields.
+        var allMatches = new List<(uint RowId, string Name, string Desc, uint Icon,
+                                   byte StatusCategory,
+                                   bool CanDispel, bool IsFcBuff, bool IsGaze, bool IsPermanent)>();
+
+        foreach (var row in GetSheet<Status>(primaryLang))
+        {
+            var name = row.Name.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (categoryFilter.HasValue && row.StatusCategory != categoryFilter.Value) continue;
+            if (query is not null && !name.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+
+            allMatches.Add((
+                row.RowId,
+                name,
+                row.Description.ToString(),
+                row.Icon,
+                row.StatusCategory,
+                row.CanDispel,
+                row.IsFcBuff,
+                row.IsGaze,
+                row.IsPermanent));
+        }
+
+        var totalMatches = allMatches.Count;
+        var page         = allMatches.Skip(offset).Take(limit).ToList();
+
+        // Pass 2: secondary language strings for page rows only.
+        var pageRowIds = new HashSet<uint>(page.Select(x => x.RowId));
+        var secondaryStrings = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, (string Name, string Desc)>();
+                    foreach (var row in GetSheet<Status>(lang))
+                    {
+                        if (!pageRowIds.Contains(row.RowId)) continue;
+                        var n = row.Name.ToString();
+                        if (!string.IsNullOrWhiteSpace(n))
+                            idx[row.RowId] = (n, row.Description.ToString());
+                    }
+                    return idx;
+                });
+
+        var entries = page.Select(m =>
+        {
+            var nameMap = new Dictionary<string, string> { [primaryLang] = m.Name };
+            var descMap = new Dictionary<string, string> { [primaryLang] = m.Desc };
+            foreach (var (lang, idx) in secondaryStrings)
+            {
+                if (idx.TryGetValue(m.RowId, out var s))
+                {
+                    nameMap[lang] = s.Name;
+                    descMap[lang] = s.Desc;
+                }
+            }
+            return new StatusEntry(
+                RowId:              m.RowId,
+                Name:               nameMap,
+                Description:        descMap,
+                Icon:               m.Icon,
+                StatusCategory:     m.StatusCategory,
+                StatusCategoryName: StatusCategories.Resolve(m.StatusCategory),
+                CanDispel:          m.CanDispel,
+                IsFcBuff:           m.IsFcBuff,
+                IsGaze:             m.IsGaze,
+                IsPermanent:        m.IsPermanent);
+        }).ToArray();
+
+        return new StatusesResponse
+        {
+            Query              = query,
+            Category           = category,
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            TotalMatches       = totalMatches,
+            Offset             = offset,
+            Limit              = limit,
+            Statuses           = entries,
             GameVersion        = gameData.GameVersion,
             Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
         };
