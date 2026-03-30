@@ -241,6 +241,77 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         Assert.Contains("ValidationError", json);
     }
 
+    // ── get_achievements ──────────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetAchievements_NoFilter_ReturnsNonEmpty()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildAchievementsResponse(null);
+
+        Assert.True(response.TotalMatches > 0);
+        Assert.All(response.Achievements, a => Assert.False(string.IsNullOrWhiteSpace(a.Name.GetValueOrDefault("en"))));
+        Assert.True(response.TotalMatches > 500, $"Expected >500 achievements, got {response.TotalMatches}");
+    }
+
+    [SkippableFact]
+    public void GetAchievements_Query_FiltersCorrectly()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildAchievementsResponse("Shadowbringers");
+
+        Assert.NotEmpty(response.Achievements);
+        Assert.All(response.Achievements, a =>
+            Assert.Contains("Shadowbringers", a.Name.GetValueOrDefault("en") ?? string.Empty,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    [SkippableFact]
+    public void GetAchievements_KnownAchievement_HasExpectedFields()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildAchievementsResponse("To Crush Your Enemies I");
+
+        var achievement = response.Achievements.FirstOrDefault(a =>
+            a.Name.GetValueOrDefault("en") == "To Crush Your Enemies I");
+        Assert.NotNull(achievement);
+        Assert.True(achievement.Points > 0, "Points should be > 0.");
+        Assert.True(achievement.Icon > 0, "Icon should be > 0.");
+        Assert.False(string.IsNullOrWhiteSpace(achievement.AchievementCategoryName));
+        Assert.False(string.IsNullOrWhiteSpace(achievement.Description.GetValueOrDefault("en")));
+    }
+
+    [SkippableFact]
+    public void GetAchievements_MultiLanguage_ReturnsBothLanguages()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildAchievementsResponse("To Crush Your Enemies I", langs: ["en", "ja"]);
+
+        var achievement = response.Achievements.FirstOrDefault(a =>
+            a.Name.GetValueOrDefault("en") == "To Crush Your Enemies I");
+        Assert.NotNull(achievement);
+        Assert.True(achievement.Name.ContainsKey("ja"), "Achievement should have a Japanese name.");
+        Assert.False(string.IsNullOrWhiteSpace(achievement.Name["ja"]));
+    }
+
+    [SkippableFact]
+    public void GetAchievements_Pagination_OffsetAdvancesResults()
+    {
+        SkipIfNoGamePath();
+
+        var page0 = BuildAchievementsResponse(null, limit: 10, offset: 0);
+        var page1 = BuildAchievementsResponse(null, limit: 10, offset: 10);
+
+        Assert.Equal(10, page0.Achievements.Length);
+        Assert.Equal(10, page1.Achievements.Length);
+        Assert.Empty(page0.Achievements.Select(a => a.RowId)
+            .Intersect(page1.Achievements.Select(a => a.RowId)));
+    }
+
     // ── get_traits ────────────────────────────────────────────────────────
 
     [SkippableFact]
@@ -443,6 +514,14 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
     {
         var json = Tools.GetDuties(category, string.Join(",", langs));
         return JsonSerializer.Deserialize<DutiesResponse>(json, DeserializeOpts)!;
+    }
+
+    private AchievementsResponse BuildAchievementsResponse(
+        string? query, string[]? langs = null, int? limit = null, int? offset = null)
+    {
+        var json = Tools.GetAchievements(query, limit, offset,
+            langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<AchievementsResponse>(json, DeserializeOpts)!;
     }
 
     private TraitsResponse BuildTraitsResponse(

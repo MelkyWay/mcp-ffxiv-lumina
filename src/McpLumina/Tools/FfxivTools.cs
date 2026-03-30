@@ -104,6 +104,27 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             return ToolHelper.Ok(BuildActionsResponse(query, jobId < 0 ? null : (uint)jobId, lim, off, langs));
         });
 
+    // ── get_achievements ─────────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_achievements")]
+    [Description(
+        "Searches achievements from the Achievement sheet. " +
+        "Use query to filter by name substring. " +
+        "Points reflects the achievement's point value. " +
+        "Use limit and offset for pagination.")]
+    public string GetAchievements(
+        [Description("Name substring to filter by (case-insensitive). Omit to return all achievements up to limit.")] string? query = null,
+        [Description("Maximum number of results (1–200). Default 50.")] int? limit = null,
+        [Description("Number of results to skip for pagination. Default 0.")] int? offset = null,
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            var lim   = InputValidator.ValidateLimit(limit);
+            var off   = InputValidator.ValidateOffset(offset);
+            var langs = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            return ToolHelper.Ok(BuildAchievementsResponse(query, lim, off, langs));
+        });
+
     // ── get_traits ───────────────────────────────────────────────────────
 
     [McpServerTool(Name = "get_traits")]
@@ -615,6 +636,97 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             Offset             = offset,
             Limit              = limit,
             Actions            = entries,
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private AchievementsResponse BuildAchievementsResponse(string? query, int limit, int offset, string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+
+        // Build AchievementCategory name lookup (small sheet).
+        var categoryNames = new Dictionary<uint, string>();
+        foreach (var cat in GetSheet<AchievementCategory>(primaryLang))
+        {
+            var n = cat.Name.ToString();
+            if (!string.IsNullOrWhiteSpace(n)) categoryNames[cat.RowId] = n;
+        }
+
+        // Pass 1: scan primary language, apply filters, collect fields.
+        var allMatches = new List<(uint RowId, string Name, string Desc, uint Icon,
+                                   uint Points, uint CategoryId)>();
+
+        foreach (var row in GetSheet<Lumina.Excel.Sheets.Achievement>(primaryLang))
+        {
+            var name = row.Name.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (query is not null && !name.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+
+            allMatches.Add((
+                row.RowId,
+                name,
+                row.Description.ToString(),
+                row.Icon,
+                row.Points,
+                row.AchievementCategory.RowId));
+        }
+
+        var totalMatches = allMatches.Count;
+        var page         = allMatches.Skip(offset).Take(limit).ToList();
+
+        // Pass 2: secondary language strings for page rows only.
+        var pageRowIds = new HashSet<uint>(page.Select(x => x.RowId));
+        var secondaryStrings = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, (string Name, string Desc)>();
+                    foreach (var row in GetSheet<Lumina.Excel.Sheets.Achievement>(lang))
+                    {
+                        if (!pageRowIds.Contains(row.RowId)) continue;
+                        var n = row.Name.ToString();
+                        if (!string.IsNullOrWhiteSpace(n))
+                            idx[row.RowId] = (n, row.Description.ToString());
+                    }
+                    return idx;
+                });
+
+        var entries = page.Select(m =>
+        {
+            var nameMap = new Dictionary<string, string> { [primaryLang] = m.Name };
+            var descMap = new Dictionary<string, string> { [primaryLang] = m.Desc };
+            foreach (var (lang, idx) in secondaryStrings)
+            {
+                if (idx.TryGetValue(m.RowId, out var s))
+                {
+                    nameMap[lang] = s.Name;
+                    descMap[lang] = s.Desc;
+                }
+            }
+            return new AchievementEntry(
+                RowId:                   m.RowId,
+                Name:                    nameMap,
+                Description:             descMap,
+                Icon:                    m.Icon,
+                Points:                  m.Points,
+                AchievementCategoryId:   m.CategoryId,
+                AchievementCategoryName: categoryNames.GetValueOrDefault(m.CategoryId, string.Empty));
+        }).ToArray();
+
+        return new AchievementsResponse
+        {
+            Query              = query,
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            TotalMatches       = totalMatches,
+            Offset             = offset,
+            Limit              = limit,
+            Achievements       = entries,
             GameVersion        = gameData.GameVersion,
             Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
         };
