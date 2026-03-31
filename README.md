@@ -78,34 +78,30 @@ Use `refresh_schema` to fetch and switch to the latest branch without restarting
 
 ## MCP Client Configuration
 
-### Claude Desktop (`claude_desktop_config.json`)
+The server communicates over **stdio** using the MCP protocol. Any MCP-compatible client (Claude Desktop, Cursor, VS Code with MCP extensions, custom agents, etc.) can connect by launching the process and piping stdio.
 
-**Using `dotnet run`** (development):
-
-```json
-{
-  "mcpServers": {
-    "ffxiv": {
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "C:\\path\\to\\mcp-ffxiv-lumina\\src\\McpLumina",
-        "--no-launch-profile"
-      ],
-      "env": {
-        "McpLumina__GamePath": "C:\\Program Files (x86)\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn"
-      }
-    }
-  }
-}
-```
-
-**Using a published binary** (recommended for production):
+### Published binary (recommended)
 
 ```bash
 dotnet publish src/McpLumina -c Release -r win-x64 --self-contained -o publish/
 ```
+
+Point your client at the binary:
+
+```
+command: C:\path\to\publish\mcp-lumina.exe
+env:     McpLumina__GamePath = C:\Program Files (x86)\SquareEnix\FINAL FANTASY XIV - A Realm Reborn
+```
+
+### Development (`dotnet run`)
+
+```
+command: dotnet
+args:    run --project C:\path\to\mcp-ffxiv-lumina\src\McpLumina --no-launch-profile
+env:     McpLumina__GamePath = C:\Program Files (x86)\SquareEnix\FINAL FANTASY XIV - A Realm Reborn
+```
+
+### Example: Claude Desktop (`claude_desktop_config.json`)
 
 ```json
 {
