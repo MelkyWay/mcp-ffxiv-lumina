@@ -93,7 +93,11 @@ public sealed class GameDataService : IDisposable
             var schemaDate = schemaVersion.StartsWith("ver/", StringComparison.OrdinalIgnoreCase)
                 ? schemaVersion[4..] : schemaVersion;
 
-            if (string.Compare(schemaDate, _gameVersion, StringComparison.OrdinalIgnoreCase) < 0)
+            // Only compare when both sides look like version strings (start with a digit).
+            // Non-version branches like "latest" or "master" cannot be meaningfully compared
+            // and would silently suppress a real staleness warning.
+            if (char.IsDigit(schemaDate.Length > 0 ? schemaDate[0] : '\0') &&
+                string.Compare(schemaDate, _gameVersion, StringComparison.OrdinalIgnoreCase) < 0)
             {
                 warnings.Add(new HealthWarning(
                     Code:    "SchemaOutdated",
@@ -121,7 +125,13 @@ public sealed class GameDataService : IDisposable
         };
     }
 
-    public (bool Success, string Message) RefreshSchema() => _schema.Refresh(_gameVersion);
+    public (bool Success, string Message, ErrorCode ErrorCode) RefreshSchema()
+    {
+        var result = _schema.Refresh(_gameVersion);
+        if (result.Success)
+            _describeCache.Clear();
+        return result;
+    }
 
     // ── list_languages() ─────────────────────────────────────────────────
 

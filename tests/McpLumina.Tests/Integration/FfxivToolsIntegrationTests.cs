@@ -930,7 +930,7 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
     {
         SkipIfNoGamePath();
 
-        var health = new HealthTool(GameData);
+        var health = new HealthTool(GameData, Cache);
         var json   = health.Health();
 
         var response = JsonSerializer.Deserialize<HealthResponse>(json, DeserializeOpts)!;
@@ -947,7 +947,7 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
     {
         SkipIfNoGamePath();
 
-        var health = new HealthTool(GameData);
+        var health = new HealthTool(GameData, Cache);
         var json   = health.ListLanguages();
 
         var response = JsonSerializer.Deserialize<LanguagesResponse>(json, DeserializeOpts)!;

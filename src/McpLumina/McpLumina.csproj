@@ -14,20 +14,20 @@
 
   <ItemGroup>
     <!-- Lumina: FFXIV game data reader -->
-    <PackageReference Include="Lumina" Version="7.*" />
+    <PackageReference Include="Lumina" Version="7.3.0" />
     <!-- Lumina.Excel: source-generated typed sheet access (ClassJob, Item, ContentFinderCondition, etc.) -->
-    <PackageReference Include="Lumina.Excel" Version="7.*" />
+    <PackageReference Include="Lumina.Excel" Version="7.4.3" />
 
     <!-- MCP stdio server SDK -->
     <PackageReference Include="ModelContextProtocol" Version="1.1.0" />
 
     <!-- YAML parsing for EXDSchema column definitions -->
-    <PackageReference Include="YamlDotNet" Version="16.*" />
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
 
     <!-- Host + DI + Logging -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.*" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.*" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.*" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

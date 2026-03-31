@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using McpLumina.Configuration;
+using McpLumina.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using YamlDotNet.Serialization;
@@ -106,15 +107,15 @@ public sealed class SchemaService
     /// branch does not exist yet. Clears the column-name cache afterwards.
     /// Returns (success, message).
     /// </summary>
-    public (bool Success, string Message) Refresh(string? gameVersion = null)
+    public (bool Success, string Message, ErrorCode ErrorCode) Refresh(string? gameVersion = null)
     {
         if (_schemaRoot is null)
-            return (false, "Schema path is not configured.");
+            return (false, "Schema path is not configured. Set SchemaPath in appsettings.json.", ErrorCode.ConfigError);
 
         // Fetch so local tracking refs are up to date.
         var fetch = RunGit("fetch", "origin");
         if (!fetch.Success)
-            return (false, $"git fetch failed: {fetch.Output}");
+            return (false, $"git fetch failed: {fetch.Output}", ErrorCode.InternalError);
 
         // Determine which branch to check out.
         string localBranch, remoteBranch, note;
@@ -141,12 +142,12 @@ public sealed class SchemaService
         // Create or reset the local branch to match the remote.
         var checkout = RunGit("checkout", "-B", localBranch, remoteBranch);
         if (!checkout.Success)
-            return (false, $"git checkout failed: {checkout.Output}");
+            return (false, $"git checkout failed: {checkout.Output}", ErrorCode.InternalError);
 
         _cache.Clear();
         _version = ReadGitBranch(_schemaRoot);
         _logger.LogInformation("Schema refreshed: {Note}", note);
-        return (true, note);
+        return (true, note, ErrorCode.InternalError); // ErrorCode unused on success
     }
 
     /// <summary>

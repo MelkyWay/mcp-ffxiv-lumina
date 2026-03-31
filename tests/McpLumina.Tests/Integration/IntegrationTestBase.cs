@@ -24,8 +24,9 @@ public abstract class IntegrationTestBase : IDisposable
 
     protected static bool ShouldSkip => string.IsNullOrWhiteSpace(GamePath);
 
-    protected GameDataService GameData { get; }
-    protected FfxivTools      Tools    { get; }
+    protected GameDataService    GameData { get; }
+    protected FfxivTools         Tools    { get; }
+    protected ResponseCacheService Cache   { get; }
 
     protected IntegrationTestBase()
     {
@@ -33,6 +34,7 @@ public abstract class IntegrationTestBase : IDisposable
         {
             GameData = null!;
             Tools    = null!;
+            Cache    = null!;
             return;
         }
 
@@ -51,8 +53,8 @@ public abstract class IntegrationTestBase : IDisposable
         GameData = new GameDataService(options, schema, logger);
 
         var memCache = new MemoryCache(new MemoryCacheOptions());
-        var cache    = new ResponseCacheService(memCache, options);
-        Tools = new FfxivTools(GameData, cache);
+        Cache = new ResponseCacheService(memCache, options);
+        Tools = new FfxivTools(GameData, Cache);
     }
 
     protected static void SkipIfNoGamePath()

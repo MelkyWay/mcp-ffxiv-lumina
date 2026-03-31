@@ -37,4 +37,10 @@ public sealed class ResponseCacheService(IMemoryCache cache, IOptions<ServerConf
     }
 
     public void Invalidate(string key) => cache.Remove(key);
+
+    public void InvalidateAll()
+    {
+        if (cache is MemoryCache mc)
+            mc.Clear();
+    }
 }

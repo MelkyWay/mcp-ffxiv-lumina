@@ -6,7 +6,7 @@ using ModelContextProtocol.Server;
 namespace McpLumina.Tools;
 
 [McpServerToolType]
-public sealed class HealthTool(GameDataService gameData)
+public sealed class HealthTool(GameDataService gameData, ResponseCacheService cache)
 {
     [McpServerTool(Name = "health")]
     [Description(
@@ -26,10 +26,10 @@ public sealed class HealthTool(GameDataService gameData)
         "Call this when the health tool reports a SchemaOutdated warning.")]
     public string RefreshSchema()
     {
-        var (success, message) = gameData.RefreshSchema();
-        return success
-            ? ToolHelper.Ok(new { refreshed = true, message })
-            : ToolHelper.Err(ErrorCode.InternalError, message);
+        var (success, message, errorCode) = gameData.RefreshSchema();
+        if (!success) return ToolHelper.Err(errorCode, message);
+        cache.InvalidateAll();
+        return ToolHelper.Ok(new { refreshed = true, message });
     }
 
     [McpServerTool(Name = "list_languages")]
