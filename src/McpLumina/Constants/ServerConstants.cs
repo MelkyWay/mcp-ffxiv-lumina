@@ -156,8 +156,8 @@ public static class StatusCategories
 /// </summary>
 public static class TomestoneStatuses
 {
-    public const string Current  = "current";   // Category 2 — current limited (e.g. Mathematics)
-    public const string Previous = "previous";  // Category 3 — previous limited (e.g. Mnemonics)
+    public const string Current  = "current";   // Category 3 — current limited (e.g. Mnemonics)
+    public const string Previous = "previous";  // Category 2 — previous limited (e.g. Mathematics)
     public const string Older    = "older";     // Category 4 — older limited (e.g. Heliometry)
     public const string Poetics  = "poetics";   // Category 1 — permanent uncapped (Poetics)
     public const string Retired  = "retired";   // Category 0 — historical/demoted tomestones
@@ -167,12 +167,12 @@ public static class TomestoneStatuses
 
     /// <summary>Sort priority: current first, retired last.</summary>
     private static readonly IReadOnlyDictionary<byte, int> SortOrder =
-        new Dictionary<byte, int> { [2] = 0, [3] = 1, [4] = 2, [1] = 3, [0] = 4 };
+        new Dictionary<byte, int> { [3] = 0, [2] = 1, [4] = 2, [1] = 3, [0] = 4 };
 
     public static string FromCategory(byte category) => category switch
     {
-        2 => Current,
-        3 => Previous,
+        3 => Current,
+        2 => Previous,
         4 => Older,
         1 => Poetics,
         _ => Retired,

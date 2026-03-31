@@ -1513,8 +1513,8 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
         // Apply status filter.
         var filtered = (statusFilter?.ToLowerInvariant() switch
         {
-            TomestoneStatuses.Current  => mappings.Where(m => m.Category == 2),
-            TomestoneStatuses.Previous => mappings.Where(m => m.Category == 3),
+            TomestoneStatuses.Current  => mappings.Where(m => m.Category == 3),
+            TomestoneStatuses.Previous => mappings.Where(m => m.Category == 2),
             TomestoneStatuses.Older    => mappings.Where(m => m.Category == 4),
             TomestoneStatuses.Poetics  => mappings.Where(m => m.Category == 1),
             TomestoneStatuses.Retired  => mappings.Where(m => m.Category == 0),
