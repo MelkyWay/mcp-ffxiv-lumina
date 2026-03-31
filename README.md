@@ -120,7 +120,7 @@ env:     McpLumina__GamePath = C:\Program Files (x86)\SquareEnix\FINAL FANTASY X
 
 ## Tools Reference
 
-The server exposes twenty-three tools across three categories:
+The server exposes twenty-four tools across three categories:
 
 - **Server tools** — health, schema management, language info
 - **Generic sheet tools** — arbitrary access to any game data sheet
@@ -658,6 +658,52 @@ Returns in-game currencies (Gil, tomestones, seals, MGP, etc.) from the Item she
 ```
 
 `stackSize` is the per-character cap.
+
+---
+
+### `get_materia(query?, stat?, limit?, offset?, languages?)`
+
+Searches materia items from the Materia sheet. Returns the stat boosted, tier (I–XII), and bonus value per materia item. Results are sorted by stat name then tier.
+
+- **`query`** — item name substring filter (e.g. `"Savage Aim"`)
+- **`stat`** — English stat name substring filter (e.g. `"Critical Hit"`, `"Gathering"`)
+- Stat names in the output are always English (proper nouns, identical across locales)
+- `bonus` is `0` for pre-Heavensward primary-stat materia (Strength/Dexterity/Vitality/Intelligence/Mind tiers I–VI) where per-tier values are not stored in the sheet
+
+```json
+{
+  "totalMatches": 12,
+  "materia": [
+    {
+      "rowId":       5669,
+      "name":        { "en": "Savage Aim Materia I" },
+      "icon":        20221,
+      "stat":        "Critical Hit",
+      "baseParamId": 27,
+      "tier":        1,
+      "bonus":       1
+    },
+    {
+      "rowId":       41772,
+      "name":        { "en": "Savage Aim Materia XII" },
+      "icon":        20298,
+      "stat":        "Critical Hit",
+      "baseParamId": 27,
+      "tier":        12,
+      "bonus":       54
+    }
+  ]
+}
+```
+
+Bonus scales vary by stat group. Some examples:
+
+| Stat group | I | II | III | IV | V | VI | VII | VIII | IX | X | XI | XII |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Combat substats (Crit, Det, etc.) | 1 | 2 | 3 | 4 | 6 | 16 | 8 | 24 | 12 | 36 | 18 | 54 |
+| Gathering / Perception | 3 | 4 | 5 | 6 | 10 | 15 | 12 | 20 | 14 | 25 | 20 | 36 |
+| Craftsmanship | 3 | 4 | 5 | 6 | 11 | 16 | 14 | 21 | 18 | 27 | 22 | 33 |
+| CP / GP | 1 | 2 | 3 | 4 | 6 | 8 | 7 | 9 | 8 | 10 | 9 | 11 |
 
 ---
 
