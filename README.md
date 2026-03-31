@@ -93,6 +93,10 @@ command: C:\path\to\publish\mcp-lumina.exe
 env:     McpLumina__GamePath = C:\Program Files (x86)\SquareEnix\FINAL FANTASY XIV - A Realm Reborn
 ```
 
+> **After any code change**, re-run `dotnet publish` and restart the MCP client to pick up the new binary. The published binary is not updated automatically.
+
+This approach is strongly preferred when running the server from multiple clients simultaneously (e.g. Claude Desktop + Codex + a custom agent). Using `dotnet run` instead will lock the debug binary and cause startup failures for any second client that tries to launch the server.
+
 ### Development (`dotnet run`)
 
 ```
@@ -806,7 +810,13 @@ Convenience tools (`get_jobs`, `get_duties`, `get_actions`, `get_items`) use `Lu
    ```
    Or manually: `cd <schemaPath> && git fetch && git checkout ver/<new-version>`.
 
-7. Release with a note of the validated FFXIV patch version.
+7. **Re-publish the binary** so MCP clients pick up the updated build:
+   ```bash
+   dotnet publish src/McpLumina -c Release -r win-x64 --self-contained -o publish/
+   ```
+   Then restart any connected MCP clients (Claude Desktop, Codex, etc.).
+
+8. Release with a note of the validated FFXIV patch version.
 
 ---
 
