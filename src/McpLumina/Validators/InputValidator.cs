@@ -103,6 +103,16 @@ public static partial class InputValidator
         return classJobId.Value;
     }
 
+    public static void ValidateTomestoneStatus(string? status)
+    {
+        if (status is null) return;
+
+        if (!TomestoneStatuses.ValidValues.Contains(status.ToLowerInvariant()))
+            throw new ValidationException(
+                $"status '{status}' is not valid. " +
+                $"Allowed values: {string.Join(", ", TomestoneStatuses.ValidValues)}.");
+    }
+
     public static void ValidateLabelKind(string kind)
     {
         if (string.IsNullOrWhiteSpace(kind))

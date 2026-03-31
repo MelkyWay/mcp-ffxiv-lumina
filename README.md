@@ -124,7 +124,7 @@ env:     McpLumina__GamePath = C:\Program Files (x86)\SquareEnix\FINAL FANTASY X
 
 ## Tools Reference
 
-The server exposes twenty-four tools across three categories:
+The server exposes twenty-five tools across three categories:
 
 - **Server tools** — health, schema management, language info
 - **Generic sheet tools** — arbitrary access to any game data sheet
@@ -722,6 +722,44 @@ Returns label sets for well-known FFXIV enumerations, suitable for populating UI
   "kind": "jobs",
   "labels": [
     { "rowId": 19, "name": { "en": "Paladin", "ja": "ナイト" } }
+  ]
+}
+```
+
+---
+
+### `get_tomestone_currencies(status?, languages?)`
+
+Returns Allagan Tomestone currencies from the `TomestonesItem` sheet, with their current rotation status. Status is derived from a stable `Category` field in the sheet — the underlying item names change each patch but the mapping does not.
+
+| Status | Meaning | Example (patch 7.2) |
+|---|---|---|
+| `current` | Active limited tomestone (weekly cap) | Mathematics |
+| `previous` | Previous limited tomestone | Mnemonics |
+| `older` | Older limited tomestone | Heliometry |
+| `poetics` | Permanent uncapped tomestone | Allagan Tomestone of Poetics |
+| `retired` | Historical tomestones no longer in circulation | Mythology, Soldiery, Law… |
+
+Omit `status` to return all. Results are sorted current-first.
+
+```json
+{
+  "totalMatches": 23,
+  "currencies": [
+    {
+      "rowId":     48,
+      "name":      { "en": "Allagan Tomestone of Mathematics" },
+      "icon":      65049,
+      "status":    "current",
+      "stackSize": 2000
+    },
+    {
+      "rowId":     28,
+      "name":      { "en": "Allagan Tomestone of Poetics" },
+      "icon":      65023,
+      "status":    "poetics",
+      "stackSize": 2000
+    }
   ]
 }
 ```

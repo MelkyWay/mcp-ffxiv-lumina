@@ -1003,6 +1003,14 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         return JsonSerializer.Deserialize<CurrenciesResponse>(json, DeserializeOpts)!;
     }
 
+    private TomestoneCurrenciesResponse BuildTomestoneCurrenciesResponse(
+        string? status, string[]? langs = null)
+    {
+        var json = Tools.GetTomestoneCurrencies(status,
+            langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<TomestoneCurrenciesResponse>(json, DeserializeOpts)!;
+    }
+
     private MateriaResponse BuildMateriaResponse(
         string? query, string? stat,
         string[]? langs = null, int? limit = null, int? offset = null)
@@ -1010,6 +1018,72 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         var json = Tools.GetMateria(query, stat, limit, offset,
             langs is null ? null : string.Join(",", langs));
         return JsonSerializer.Deserialize<MateriaResponse>(json, DeserializeOpts)!;
+    }
+
+    // ── get_tomestone_currencies ───────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetTomestoneCurrencies_All_ContainsPoeticsAndCurrent()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTomestoneCurrenciesResponse(null);
+
+        Assert.True(response.TotalMatches > 0);
+        Assert.Contains(response.Currencies, c => c.Status == "poetics");
+        Assert.Contains(response.Currencies, c => c.Status == "current");
+        Assert.Contains(response.Currencies, c => c.Status == "retired");
+    }
+
+    [SkippableFact]
+    public void GetTomestoneCurrencies_CurrentFilter_OnlyReturnsCurrent()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTomestoneCurrenciesResponse("current");
+
+        Assert.True(response.TotalMatches > 0);
+        Assert.All(response.Currencies, c => Assert.Equal("current", c.Status));
+    }
+
+    [SkippableFact]
+    public void GetTomestoneCurrencies_PoeticFilter_IsPoetics()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTomestoneCurrenciesResponse("poetics");
+
+        Assert.Single(response.Currencies);
+        Assert.Equal("poetics", response.Currencies[0].Status);
+        Assert.True(response.Currencies[0].Name.ContainsKey("en"));
+        Assert.Contains("Poetics", response.Currencies[0].Name["en"], StringComparison.OrdinalIgnoreCase);
+    }
+
+    [SkippableFact]
+    public void GetTomestoneCurrencies_SortedCurrentFirst()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTomestoneCurrenciesResponse(null);
+
+        var statuses = response.Currencies.Select(c => c.Status).ToList();
+        var currentIdx  = statuses.IndexOf("current");
+        var retiredIdx  = statuses.LastIndexOf("retired");
+        Assert.True(currentIdx < retiredIdx, "current should appear before retired in sort order.");
+    }
+
+    [SkippableFact]
+    public void GetTomestoneCurrencies_MultiLanguage_HasJapaneseNames()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTomestoneCurrenciesResponse(null, langs: ["en", "ja"]);
+
+        Assert.All(response.Currencies, c =>
+        {
+            Assert.True(c.Name.ContainsKey("ja"), $"Currency {c.RowId} missing Japanese name.");
+            Assert.False(string.IsNullOrWhiteSpace(c.Name["ja"]));
+        });
     }
 
     // ── health / list_languages ────────────────────────────────────────────

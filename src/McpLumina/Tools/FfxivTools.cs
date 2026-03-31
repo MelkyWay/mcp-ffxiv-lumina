@@ -327,6 +327,27 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             return cache.GetOrCreate(cacheKey, () => ToolHelper.Ok(BuildLabelsResponse(kind, langs)));
         });
 
+    // ── get_tomestone_currencies ──────────────────────────────────────────
+
+    [McpServerTool(Name = "get_tomestone_currencies")]
+    [Description(
+        "Returns Allagan Tomestone currencies from the TomestonesItem sheet, with their current rotation status. " +
+        "Status values: 'current' (active limited tomestone, e.g. Mathematics), " +
+        "'previous' (previous limited, e.g. Mnemonics), 'older' (older limited, e.g. Heliometry), " +
+        "'poetics' (permanent uncapped, always Poetics), 'retired' (historical tomestones no longer in circulation). " +
+        "Status is derived from a stable Category field in the sheet — the underlying item names change each patch " +
+        "but the status mapping does not. Results are sorted current-first. Omit status to return all.")]
+    public string GetTomestoneCurrencies(
+        [Description("Filter by rotation status: current | previous | older | poetics | retired. Omit for all.")] string? status = null,
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            InputValidator.ValidateTomestoneStatus(status);
+            var langs    = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            var cacheKey = $"get_tomestone_currencies:{status ?? "all"}:{string.Join(",", langs)}";
+            return cache.GetOrCreate(cacheKey, () => ToolHelper.Ok(BuildTomestoneCurrenciesResponse(status, langs)));
+        });
+
     // ── get_materia ───────────────────────────────────────────────────────
 
     [McpServerTool(Name = "get_materia")]
@@ -1466,6 +1487,95 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             LanguagesRequested = langs,
             LanguagesReturned  = returned,
             FallbackUsed       = fallback,
+            Currencies         = entries,
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private TomestoneCurrenciesResponse BuildTomestoneCurrenciesResponse(string? statusFilter, string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+
+        // Load TomestonesItem — authoritative catalog of tomestone currencies.
+        // Column 0 = Item row ID, Column 1 = TomestoneId (internal, unused), Column 2 = Category.
+        var tiSheet  = gameData.GenericReader.LoadSheet("TomestonesItem");
+        var mappings = new List<(uint ItemId, byte Category)>();
+        foreach (var row in gameData.GenericReader.ReadAllRows(tiSheet))
+        {
+            var itemId = Convert.ToUInt32(gameData.GenericReader.ReadColumnValue(row, tiSheet.Columns[0], 0) ?? 0u);
+            var cat    = Convert.ToByte(gameData.GenericReader.ReadColumnValue(row, tiSheet.Columns[2], 2) ?? (byte)0);
+            if (itemId == 0) continue;
+            mappings.Add((itemId, cat));
+        }
+
+        // Apply status filter.
+        var filtered = (statusFilter?.ToLowerInvariant() switch
+        {
+            TomestoneStatuses.Current  => mappings.Where(m => m.Category == 2),
+            TomestoneStatuses.Previous => mappings.Where(m => m.Category == 3),
+            TomestoneStatuses.Older    => mappings.Where(m => m.Category == 4),
+            TomestoneStatuses.Poetics  => mappings.Where(m => m.Category == 1),
+            TomestoneStatuses.Retired  => mappings.Where(m => m.Category == 0),
+            _                          => mappings.AsEnumerable(),
+        }).ToList();
+
+        // Load Item details for matched currencies.
+        var matchedIds = new HashSet<uint>(filtered.Select(m => m.ItemId));
+        var itemData   = new Dictionary<uint, (string Name, uint Icon, uint StackSize)>();
+        foreach (var row in GetSheet<Item>(primaryLang))
+        {
+            if (!matchedIds.Contains(row.RowId)) continue;
+            var name = row.Name.ToString();
+            if (!string.IsNullOrWhiteSpace(name))
+                itemData[row.RowId] = (name, row.Icon, row.StackSize);
+        }
+
+        // Secondary language names.
+        var secondaryNames = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, string>();
+                    foreach (var row in GetSheet<Item>(lang))
+                    {
+                        if (!matchedIds.Contains(row.RowId)) continue;
+                        var n = row.Name.ToString();
+                        if (!string.IsNullOrWhiteSpace(n)) idx[row.RowId] = n;
+                    }
+                    return idx;
+                });
+
+        // Build entries sorted: current → previous → older → poetics → retired.
+        var entries = filtered
+            .OrderBy(m => TomestoneStatuses.SortPriority(m.Category))
+            .ThenBy(m => m.ItemId)
+            .Select(m =>
+            {
+                if (!itemData.TryGetValue(m.ItemId, out var data)) return null;
+                var nameMap = new Dictionary<string, string> { [primaryLang] = data.Name };
+                foreach (var (lang, idx) in secondaryNames)
+                    if (idx.TryGetValue(m.ItemId, out var n)) nameMap[lang] = n;
+                return new TomestoneCurrencyEntry(
+                    RowId:     m.ItemId,
+                    Name:      nameMap,
+                    Icon:      data.Icon,
+                    Status:    TomestoneStatuses.FromCategory(m.Category),
+                    StackSize: data.StackSize);
+            })
+            .OfType<TomestoneCurrencyEntry>()
+            .ToArray();
+
+        return new TomestoneCurrenciesResponse
+        {
+            StatusFilter       = statusFilter,
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            TotalMatches       = entries.Length,
             Currencies         = entries,
             GameVersion        = gameData.GameVersion,
             Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
