@@ -327,6 +327,31 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             return cache.GetOrCreate(cacheKey, () => ToolHelper.Ok(BuildLabelsResponse(kind, langs)));
         });
 
+    // ── get_materia ───────────────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_materia")]
+    [Description(
+        "Searches materia from the Materia sheet. Returns the stat boosted, tier (I–XII), and " +
+        "bonus value per materia item. Use query to filter by item name substring. " +
+        "Use stat to filter by stat name substring (e.g. 'Critical Hit', 'Direct Hit Rate'). " +
+        "Stat names in the output are always English (they are proper nouns identical across locales). " +
+        "Bonus is 0 for pre-Heavensward primary-stat materia (Strength/Dexterity/Vitality/Intelligence/Mind " +
+        "tiers I–VI) where per-tier values are not stored in the sheet. " +
+        "Results are sorted by stat name then tier. Use limit and offset for pagination.")]
+    public string GetMateria(
+        [Description("Item name substring to filter by (case-insensitive). Omit to return all materia up to limit.")] string? query = null,
+        [Description("Stat name substring to filter by (case-insensitive, English), e.g. 'Critical Hit', 'Direct Hit Rate'.")] string? stat = null,
+        [Description("Maximum number of results (1–200). Default 50.")] int? limit = null,
+        [Description("Number of results to skip for pagination. Default 0.")] int? offset = null,
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            var lim   = InputValidator.ValidateLimit(limit);
+            var off   = InputValidator.ValidateOffset(offset);
+            var langs = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            return ToolHelper.Ok(BuildMateriaResponse(query, stat, lim, off, langs));
+        });
+
     // ── Private builders ─────────────────────────────────────────────────
 
     private JobsResponse BuildJobsResponse(string[] langs)
@@ -1442,6 +1467,115 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             LanguagesReturned  = returned,
             FallbackUsed       = fallback,
             Currencies         = entries,
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private MateriaResponse BuildMateriaResponse(string? query, string? stat, int limit, int offset, string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+
+        // Step 1: Build BaseParam name index (always English — stat names are locale-invariant proper nouns).
+        var baseParamSheet = gameData.GenericReader.LoadSheet("BaseParam", Language.English);
+        var baseParamNames = new Dictionary<uint, string>();
+        foreach (var row in gameData.GenericReader.ReadAllRows(baseParamSheet))
+        {
+            var nameVal = gameData.GenericReader.ReadColumnValue(row, baseParamSheet.Columns[1], 1);
+            var name    = nameVal?.ToString() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(name))
+                baseParamNames[row.RowId] = name;
+        }
+
+        // Step 2: Build materia index: itemId → (materiaRowId, baseParamId, tier 1-indexed, bonus).
+        // Materia sheet columns: 0-15 = Item row IDs per tier, 16 = BaseParam row ID, 17-32 = bonus per tier.
+        var materiaSheet = gameData.GenericReader.LoadSheet("Materia");
+        var materiaIndex = new Dictionary<uint, (uint MateriaRowId, uint BaseParamId, int Tier, int Bonus)>();
+        foreach (var row in gameData.GenericReader.ReadAllRows(materiaSheet))
+        {
+            var baseParamRaw = gameData.GenericReader.ReadColumnValue(row, materiaSheet.Columns[16], 16);
+            var baseParamId  = Convert.ToUInt32(baseParamRaw ?? 0u);
+            if (baseParamId == 0) continue;
+
+            for (int tierIdx = 0; tierIdx < 16; tierIdx++)
+            {
+                var itemRaw = gameData.GenericReader.ReadColumnValue(row, materiaSheet.Columns[tierIdx], tierIdx);
+                var itemId  = Convert.ToUInt32(itemRaw ?? 0u);
+                if (itemId == 0) continue;
+
+                var bonusRaw = gameData.GenericReader.ReadColumnValue(row, materiaSheet.Columns[17 + tierIdx], 17 + tierIdx);
+                var bonus    = Convert.ToInt32(bonusRaw ?? 0);
+                materiaIndex[itemId] = (row.RowId, baseParamId, tierIdx + 1, bonus);
+            }
+        }
+
+        // Step 3: Scan Item sheet (typed), filter to materia items, apply query/stat filters.
+        var allMatches = new List<(uint RowId, string Name, uint Icon, uint BaseParamId, string StatName, int Tier, int Bonus)>();
+        foreach (var row in GetSheet<Item>(primaryLang))
+        {
+            if (!materiaIndex.TryGetValue(row.RowId, out var matInfo)) continue;
+            var name = row.Name.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (query is not null && !name.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+            var statName = baseParamNames.GetValueOrDefault(matInfo.BaseParamId, string.Empty);
+            if (stat is not null && !statName.Contains(stat, StringComparison.OrdinalIgnoreCase)) continue;
+            allMatches.Add((row.RowId, name, row.Icon, matInfo.BaseParamId, statName, matInfo.Tier, matInfo.Bonus));
+        }
+
+        allMatches.Sort((a, b) =>
+        {
+            int c = string.Compare(a.StatName, b.StatName, StringComparison.OrdinalIgnoreCase);
+            return c != 0 ? c : a.Tier.CompareTo(b.Tier);
+        });
+
+        var totalMatches = allMatches.Count;
+        var page         = allMatches.Skip(offset).Take(limit).ToList();
+
+        // Pass 2: secondary language names for page rows only.
+        var pageRowIds = new HashSet<uint>(page.Select(x => x.RowId));
+        var secondaryNames = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, string>();
+                    foreach (var row in GetSheet<Item>(lang))
+                    {
+                        if (!pageRowIds.Contains(row.RowId)) continue;
+                        var n = row.Name.ToString();
+                        if (!string.IsNullOrWhiteSpace(n)) idx[row.RowId] = n;
+                    }
+                    return idx;
+                });
+
+        var entries = page.Select(m =>
+        {
+            var nameMap = new Dictionary<string, string> { [primaryLang] = m.Name };
+            foreach (var (lang, idx) in secondaryNames)
+                if (idx.TryGetValue(m.RowId, out var n)) nameMap[lang] = n;
+            return new MateriaEntry(
+                RowId:       m.RowId,
+                Name:        nameMap,
+                Icon:        m.Icon,
+                Stat:        m.StatName,
+                BaseParamId: m.BaseParamId,
+                Tier:        m.Tier,
+                Bonus:       m.Bonus);
+        }).ToArray();
+
+        return new MateriaResponse
+        {
+            Query              = query,
+            Stat               = stat,
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            TotalMatches       = totalMatches,
+            Offset             = offset,
+            Limit              = limit,
+            Materia            = entries,
             GameVersion        = gameData.GameVersion,
             Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
         };

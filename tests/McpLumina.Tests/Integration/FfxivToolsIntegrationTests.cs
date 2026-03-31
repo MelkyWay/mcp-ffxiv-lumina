@@ -800,6 +800,86 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         Assert.False(string.IsNullOrWhiteSpace(gil.Name["ja"]));
     }
 
+    // ── get_materia ────────────────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetMateria_NoFilter_ReturnsMateriaEntries()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMateriaResponse(null, null);
+
+        Assert.True(response.TotalMatches > 0, "Expected at least one materia entry.");
+        Assert.All(response.Materia, m =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(m.Stat), "Stat name should not be empty.");
+            Assert.True(m.Tier >= 1 && m.Tier <= 12, $"Tier {m.Tier} out of range.");
+            Assert.True(m.Name.ContainsKey("en"), "Entry should have English name.");
+        });
+    }
+
+    [SkippableFact]
+    public void GetMateria_StatFilter_ReturnsCritHitMateria()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMateriaResponse(null, "Critical Hit");
+
+        Assert.True(response.TotalMatches > 0, "Expected Critical Hit materia.");
+        Assert.All(response.Materia, m =>
+            Assert.Contains("Critical Hit", m.Stat, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [SkippableFact]
+    public void GetMateria_StatFilter_SortedByTier()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMateriaResponse(null, "Critical Hit", limit: 200);
+
+        var tiers = response.Materia.Select(m => m.Tier).ToList();
+        Assert.Equal(tiers.OrderBy(t => t).ToList(), tiers);
+    }
+
+    [SkippableFact]
+    public void GetMateria_QueryFilter_FiltersToMatchingNames()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMateriaResponse("Savage Aim", null);
+
+        Assert.True(response.TotalMatches > 0, "Expected Savage Aim materia.");
+        Assert.All(response.Materia, m =>
+            Assert.Contains("Savage Aim", m.Name["en"], StringComparison.OrdinalIgnoreCase));
+    }
+
+    [SkippableFact]
+    public void GetMateria_MultiLanguage_HasJapaneseNames()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildMateriaResponse(null, "Critical Hit", langs: ["en", "ja"]);
+
+        Assert.All(response.Materia, m =>
+        {
+            Assert.True(m.Name.ContainsKey("ja"), "Entry should have Japanese name.");
+            Assert.False(string.IsNullOrWhiteSpace(m.Name["ja"]));
+        });
+    }
+
+    [SkippableFact]
+    public void GetMateria_Pagination_WorksCorrectly()
+    {
+        SkipIfNoGamePath();
+
+        var page1 = BuildMateriaResponse(null, null, limit: 5, offset: 0);
+        var page2 = BuildMateriaResponse(null, null, limit: 5, offset: 5);
+
+        Assert.Equal(5, page1.Materia.Length);
+        Assert.Equal(5, page2.Materia.Length);
+        Assert.Empty(page1.Materia.Select(m => m.RowId).Intersect(page2.Materia.Select(m => m.RowId)));
+    }
+
     // ── Localized string correctness ──────────────────────────────────────
 
     [SkippableTheory]
@@ -921,6 +1001,15 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
     {
         var json = Tools.GetCurrencies(langs is null ? null : string.Join(",", langs));
         return JsonSerializer.Deserialize<CurrenciesResponse>(json, DeserializeOpts)!;
+    }
+
+    private MateriaResponse BuildMateriaResponse(
+        string? query, string? stat,
+        string[]? langs = null, int? limit = null, int? offset = null)
+    {
+        var json = Tools.GetMateria(query, stat, limit, offset,
+            langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<MateriaResponse>(json, DeserializeOpts)!;
     }
 
     // ── health / list_languages ────────────────────────────────────────────
