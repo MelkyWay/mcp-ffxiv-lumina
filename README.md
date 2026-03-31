@@ -39,7 +39,8 @@ Edit `src/McpLumina/appsettings.json`:
     "languageDefault": "en",
     "cacheEnabled": true,
     "cacheTTLSeconds": 300,
-    "logLevel": "Information"
+    "logLevel": "Information",
+    "schemaPath": "C:\\path\\to\\EXDSchema"
   }
 }
 ```
@@ -51,6 +52,7 @@ Edit `src/McpLumina/appsettings.json`:
 | `cacheEnabled` | bool | no | `true` | Enable in-memory response caching |
 | `cacheTTLSeconds` | int | no | `300` | Cache TTL in seconds |
 | `logLevel` | string | no | `"Information"` | Log verbosity (`Trace`, `Debug`, `Information`, `Warning`, `Error`) |
+| `schemaPath` | string | no | — | Path to a local [EXDSchema](https://github.com/xivdev/EXDSchema) clone. When set, `describe_sheet` reports real field names instead of `Column_N` indices. |
 
 All settings can also be set via environment variables using the `McpLumina__` prefix:
 
@@ -59,6 +61,18 @@ McpLumina__GamePath="C:\..." McpLumina__LanguageDefault=ja dotnet run --project 
 ```
 
 > **Note:** All logging goes to stderr. stdout is reserved exclusively for the MCP stdio frame stream.
+
+### EXDSchema (optional)
+
+[EXDSchema](https://github.com/xivdev/EXDSchema) is a community-maintained repository of FFXIV sheet column definitions. When configured via `schemaPath`, `describe_sheet` returns real field names (e.g. `Name`, `ClassJob`) instead of positional indices (`Column_0`, `Column_10`), and `get_row` / `search_rows` accept those names in `return_fields` and `text_fields`.
+
+```bash
+git clone https://github.com/xivdev/EXDSchema C:\EXDSchema
+cd C:\EXDSchema
+git checkout ver/2026.03.17.0000.0000   # branch matching your game version
+```
+
+Use `refresh_schema` to fetch and switch to the latest branch without restarting the server.
 
 ---
 
@@ -110,7 +124,13 @@ dotnet publish src/McpLumina -c Release -r win-x64 --self-contained -o publish/
 
 ## Tools Reference
 
-The server exposes thirteen tools across two categories: **generic sheet tools** for arbitrary data access, and **FFXIV-specific convenience tools** for pre-shaped game entities.
+The server exposes twenty-three tools across three categories:
+
+- **Server tools** — health, schema management, language info
+- **Generic sheet tools** — arbitrary access to any game data sheet
+- **FFXIV convenience tools** — pre-shaped responses for common game entities
+
+---
 
 ### `health()`
 
@@ -123,6 +143,8 @@ Returns server status, game version, cache settings, and uptime. Use this to con
   "gamePath": "C:\\...",
   "detectedVersion": "2026.03.17.0000.0000",
   "validatedVersion": "2026.03.17.0000.0000",
+  "schemaAvailable": true,
+  "schemaVersion": "ver/2026.03.17.0000.0000",
   "cacheEnabled": true,
   "cacheTTLSeconds": 300,
   "uptimeSeconds": 42,
@@ -130,7 +152,21 @@ Returns server status, game version, cache settings, and uptime. Use this to con
 }
 ```
 
-If the game has been patched since the server was validated, `status` will be `"degraded"` with a `GameVersionMismatch` warning. Generic tools (`get_row`, `search_rows`, etc.) are unaffected; FFXIV convenience tools (`get_jobs`, `get_duties`) may return incorrect data until `ServerConstants.cs` is updated.
+If the game has been patched, `status` will be `"degraded"` with a `GameVersionMismatch` warning. Generic tools (`get_row`, `search_rows`, etc.) are unaffected; FFXIV convenience tools (`get_jobs`, `get_duties`) may return incorrect data until `ServerConstants.cs` is updated.
+
+If a schema is configured but its branch version is older than the game version, a `SchemaOutdated` warning is emitted. Call `refresh_schema` to resolve it.
+
+---
+
+### `refresh_schema()`
+
+Runs `git fetch` + `git checkout -B` in the configured `schemaPath` directory to pull the latest column definitions, then clears all cached describe and response data so subsequent calls use the updated schema. Returns success or failure with a message.
+
+```json
+{ "refreshed": true, "message": "Checked out ver/2026.03.17.0000.0000." }
+```
+
+If `schemaPath` is not configured, returns a `ConfigError`. If the git operation fails, returns an `InternalError` with the git output.
 
 ---
 
@@ -155,6 +191,13 @@ Returns which of the four supported languages (`en`, `fr`, `de`, `ja`) are avail
 
 Returns the names of all game data sheets available in this installation. Sheet names are parsed from `exd/root.exl` at startup and cached for the server lifetime. The result is sorted alphabetically.
 
+```json
+{
+  "count": 756,
+  "sheets": ["Achievement", "Action", "BeastTribe", "ClassJob", "ContentFinderCondition", "Item", "..."]
+}
+```
+
 ---
 
 ### `describe_sheet(sheet)`
@@ -175,7 +218,7 @@ Returns column metadata and approximate row count for the named sheet. Use this 
 }
 ```
 
-Column types are reported as: `string`, `bool`, `int`, `uint`, `float`.
+When EXDSchema is configured, `name` values are real field names (e.g. `"Name"`, `"ClassJob"`) instead of `Column_N`. Column types are reported as: `string`, `bool`, `int`, `uint`, `float`.
 
 ---
 
@@ -285,7 +328,7 @@ Returns all ClassJob rows (base classes and jobs) enriched with derived role gro
 - `isLimited: true` — Blue Mage
 - `role` values: `Tank`, `Healer`, `Melee DPS`, `Physical Ranged DPS`, `Magical Ranged DPS`, `Limited`, `None`
 
-> **Note:** `role` labels are English-only in V1. They are derived values, not sourced from game strings.
+> **Note:** `role` labels are English-only. They are derived values, not sourced from game strings.
 
 ---
 
@@ -313,6 +356,41 @@ Returns ContentFinderCondition rows, optionally filtered by category. Omit `cate
 ```
 
 > **Patch sensitivity:** ContentType IDs are hardcoded constants validated against a specific game version (see `ServerConstants.cs`). A `GameVersionMismatch` warning from `health()` means these filters should be re-verified before relying on them.
+
+---
+
+### `get_items(query?, limit?, offset?, languages?)`
+
+Searches the Item sheet by name. Returns item level, equip level, stack size, icon, rarity, NPC price, and HQ eligibility.
+
+| Parameter | Description |
+|---|---|
+| `query` | Case-insensitive name substring filter |
+| `limit` / `offset` | Pagination (max limit 200) |
+
+```json
+{
+  "totalMatches": 1,
+  "items": [
+    {
+      "rowId": 4179,
+      "name":       { "en": "Hi-Potion" },
+      "icon":       20,
+      "itemLevel":  1,
+      "equipLevel": 0,
+      "stackSize":  999,
+      "rarity":     1,
+      "filterGroup": 8,
+      "priceMid":   150,
+      "canBeHq":    false
+    }
+  ]
+}
+```
+
+**Rarity values:** `1` = common (white), `2` = uncommon (green), `3` = rare (blue), `4` = relic (purple).
+
+> **Note:** Item names are stored as singular lowercase grammatical forms (e.g. `"potion"`, not `"Potion"`).
 
 ---
 
@@ -352,6 +430,241 @@ Searches player actions (abilities, spells, weaponskills) from the Action sheet.
 
 ---
 
+### `get_traits(query?, classJobId?, limit?, offset?, languages?)`
+
+Returns passive job traits from the Trait sheet. Results are ordered by level.
+
+| Parameter | Description |
+|---|---|
+| `query` | Case-insensitive name substring filter |
+| `classJobId` | Filter by ClassJob row ID (e.g. `24` for White Mage) |
+| `limit` / `offset` | Pagination (max limit 200) |
+
+```json
+{
+  "totalMatches": 12,
+  "traits": [
+    {
+      "rowId": 47,
+      "name":        { "en": "Maim and Mend" },
+      "description": { "en": "Increases the potency of physical attacks by 10% and all healing magic potency by 30%." },
+      "classJobId":  22,
+      "level":       20
+    }
+  ]
+}
+```
+
+---
+
+### `get_statuses(query?, category?, limit?, offset?, languages?)`
+
+Searches status effects (buffs and debuffs) from the Status sheet.
+
+| Parameter | Description |
+|---|---|
+| `query` | Case-insensitive name substring filter |
+| `category` | `beneficial` or `detrimental`. Omit for all. |
+| `limit` / `offset` | Pagination (max limit 200) |
+
+```json
+{
+  "totalMatches": 1,
+  "statuses": [
+    {
+      "rowId": 17,
+      "name":               { "en": "Paralysis" },
+      "description":        { "en": "Unable to execute actions." },
+      "icon":               215003,
+      "statusCategory":     2,
+      "statusCategoryName": "detrimental",
+      "canDispel":          true,
+      "maxStacks":          0
+    }
+  ]
+}
+```
+
+`maxStacks = 0` means the status is not stackable.
+
+---
+
+### `get_mounts(query?, limit?, offset?, languages?)`
+
+Searches mounts from the Mount sheet.
+
+```json
+{
+  "totalMatches": 3,
+  "mounts": [
+    {
+      "rowId":      1,
+      "name":       { "en": "Company Chocobo" },
+      "icon":       4087,
+      "isFlying":   true,
+      "extraSeats": 0
+    }
+  ]
+}
+```
+
+`extraSeats > 0` indicates a multi-seat mount.
+
+---
+
+### `get_minions(query?, limit?, offset?, languages?)`
+
+Searches minions (companions) from the Companion sheet.
+
+```json
+{
+  "totalMatches": 1,
+  "minions": [
+    {
+      "rowId": 8,
+      "name": { "en": "Bahamut" },
+      "icon": 59114
+    }
+  ]
+}
+```
+
+---
+
+### `get_achievements(query?, limit?, offset?, languages?)`
+
+Searches achievements from the Achievement sheet.
+
+```json
+{
+  "totalMatches": 1,
+  "achievements": [
+    {
+      "rowId":                   1,
+      "name":                    { "en": "To Crush Your Enemies I" },
+      "description":             { "en": "Defeat 100 enemies." },
+      "points":                  5,
+      "icon":                    112001,
+      "achievementCategoryName": "Battle"
+    }
+  ]
+}
+```
+
+---
+
+### `get_races(languages?)`
+
+Returns all eight playable races from the Race sheet. Each race has a masculine and feminine name (which may differ by language).
+
+**Row IDs:** `1`=Hyur, `2`=Elezen, `3`=Lalafell, `4`=Miqo'te, `5`=Roegadyn, `6`=Au Ra, `7`=Hrothgar, `8`=Viera
+
+```json
+{
+  "races": [
+    {
+      "rowId":     4,
+      "masculine": { "en": "Miqo'te", "ja": "ミコッテ" },
+      "feminine":  { "en": "Miqo'te", "ja": "ミコッテ" }
+    }
+  ]
+}
+```
+
+---
+
+### `get_worlds(query?)`
+
+Returns public player-accessible worlds (servers) from the World sheet, with their data centre.
+
+```json
+{
+  "totalMatches": 1,
+  "worlds": [
+    {
+      "rowId":          73,
+      "name":           "Cactuar",
+      "internalName":   "Cactuar",
+      "dataCenterId":   8,
+      "dataCenterName": "Aether",
+      "isPublic":       true
+    }
+  ]
+}
+```
+
+> **Note:** World names are proper nouns and are the same across all languages.
+
+---
+
+### `get_weather(query?, limit?, offset?, languages?)`
+
+Searches weather types from the Weather sheet.
+
+```json
+{
+  "totalMatches": 2,
+  "weathers": [
+    {
+      "rowId": 7,
+      "name": { "en": "Rain", "ja": "雨" },
+      "icon": 60913
+    }
+  ]
+}
+```
+
+---
+
+### `get_titles(query?, limit?, offset?, languages?)`
+
+Searches player titles from the Title sheet. Each title has a masculine and feminine form, and a position flag.
+
+```json
+{
+  "totalMatches": 1,
+  "titles": [
+    {
+      "rowId":     1,
+      "masculine": { "en": "the Insatiable" },
+      "feminine":  { "en": "the Insatiable" },
+      "isPrefix":  false
+    }
+  ]
+}
+```
+
+`isPrefix: true` — title appears before the character name (e.g. `"Warrior of Light Firstname"`). `isPrefix: false` — appears after (e.g. `"Firstname the Insatiable"`).
+
+---
+
+### `get_currencies(languages?)`
+
+Returns in-game currencies (Gil, tomestones, seals, MGP, etc.) from the Item sheet. Identified by `ItemUICategory = 63`, `FilterGroup = 16`, `StackSize > 1`.
+
+```json
+{
+  "currencies": [
+    {
+      "rowId":     1,
+      "name":      { "en": "Gil" },
+      "icon":      65002,
+      "stackSize": 999999999
+    },
+    {
+      "rowId":     28,
+      "name":      { "en": "Allagan Tomestone of Poetics" },
+      "icon":      65023,
+      "stackSize": 2000
+    }
+  ]
+}
+```
+
+`stackSize` is the per-character cap.
+
+---
+
 ### `get_localized_labels(kind, languages?)`
 
 Returns label sets for well-known FFXIV enumerations, suitable for populating UI dropdowns or building lookup tables.
@@ -383,7 +696,7 @@ All tools return structured errors on failure:
 
 | Code | Meaning |
 |---|---|
-| `ConfigError` | Invalid or missing configuration |
+| `ConfigError` | Invalid or missing configuration (e.g. `schemaPath` not set when calling `refresh_schema`) |
 | `SheetNotFound` | Named sheet doesn't exist in the game data |
 | `RowNotFound` | Row ID is not present in the sheet |
 | `LanguageUnavailable` | Requested language code is invalid or not installed |
@@ -443,9 +756,15 @@ Convenience tools (`get_jobs`, `get_duties`, `get_actions`, `get_items`) use `Lu
 
 4. **Bump `KnownGoodGameVersion.Value`** in `ServerConstants.cs` to the new game version string (from `game/ffxivgame.ver`).
 
-5. **Run the full test suite** — all 151 tests should pass.
+5. **Run the full test suite** — all 220 tests should run (147 unit pass without a game install; 73 integration require `FFXIV_GAME_PATH`).
 
-6. Release with a note of the validated FFXIV patch version.
+6. **Refresh EXDSchema** if configured:
+   ```
+   refresh_schema()
+   ```
+   Or manually: `cd <schemaPath> && git fetch && git checkout ver/<new-version>`.
+
+7. Release with a note of the validated FFXIV patch version.
 
 ---
 
@@ -457,7 +776,7 @@ Generic tools (`get_row`, `search_rows`, etc.) use Lumina's untyped `RawExcelShe
 
 ### Caching
 
-Responses are cached in-memory with a configurable TTL (default 5 minutes). The sheet list and sheet descriptions are cached for the server lifetime (they don't change while the server is running). The cache is not persisted across restarts.
+Responses are cached in-memory with a configurable TTL (default 5 minutes). The sheet list is cached for the server lifetime. `describe_sheet` results are cached in a lifetime dictionary (they don't change while the server is running) and in `ResponseCacheService`. Calling `refresh_schema` clears both caches so updated column names are reflected immediately. The cache is not persisted across restarts.
 
 ---
 
