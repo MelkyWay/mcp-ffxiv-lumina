@@ -60,3 +60,9 @@ desktop.ini
 
 # Verify snapshot received files (only .verified.json is committed)
 *.received.json
+
+# WIP scratch space
+_WIP/
+
+# Local temp artifacts
+tmp_*.json
