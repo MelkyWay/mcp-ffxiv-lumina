@@ -51,6 +51,7 @@ builder.Services.AddSingleton<ResponseCacheService>();
 builder.Services.AddSingleton<ConfigValidator>();
 builder.Services.AddSingleton<SchemaService>();
 builder.Services.AddSingleton<GameDataService>();
+builder.Services.AddSingleton<SupplementalDataService>();
 
 // ── MCP server ────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,17 @@ try
 catch (Exception ex)
 {
     await Console.Error.WriteLineAsync($"Failed to initialise game data: {ex.Message}");
+    return 1;
+}
+
+// Eagerly initialise SupplementalDataService (loads CSV assets + builds name indices)
+try
+{
+    _ = host.Services.GetRequiredService<SupplementalDataService>();
+}
+catch (Exception ex)
+{
+    await Console.Error.WriteLineAsync($"Failed to initialise supplemental data: {ex.Message}");
     return 1;
 }
 
