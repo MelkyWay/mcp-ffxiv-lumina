@@ -1020,6 +1020,14 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         return JsonSerializer.Deserialize<MateriaResponse>(json, DeserializeOpts)!;
     }
 
+    private TripleTriadCardsResponse BuildTripleTriadCardsResponse(
+        string? query, string[]? langs = null, int? limit = null, int? offset = null)
+    {
+        var json = Tools.GetTripleTriadCards(query, limit, offset,
+            langs is null ? null : string.Join(",", langs));
+        return JsonSerializer.Deserialize<TripleTriadCardsResponse>(json, DeserializeOpts)!;
+    }
+
     // ── get_tomestone_currencies ───────────────────────────────────────────
 
     [SkippableFact]
@@ -1084,6 +1092,138 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
             Assert.True(c.Name.ContainsKey("ja"), $"Currency {c.RowId} missing Japanese name.");
             Assert.False(string.IsNullOrWhiteSpace(c.Name["ja"]));
         });
+    }
+
+    // ── get_triple_triad_cards ─────────────────────────────────────────────
+
+    [SkippableFact]
+    public void GetTripleTriadCards_NoFilter_ReturnsCards()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTripleTriadCardsResponse(null);
+
+        Assert.True(response.TotalMatches > 400, $"Expected >400 cards, got {response.TotalMatches}");
+        Assert.All(response.Cards, c =>
+        {
+            Assert.True(c.Name.ContainsKey("en"), "Each card should have an English name.");
+            Assert.False(string.IsNullOrWhiteSpace(c.Name["en"]));
+            Assert.InRange(c.Stars, 1, 5);
+            Assert.False(string.IsNullOrWhiteSpace(c.Type));
+        });
+    }
+
+    [SkippableFact]
+    public void GetTripleTriadCards_KnownCard_Dodo_HasCorrectStats()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTripleTriadCardsResponse("Dodo");
+
+        var dodo = response.Cards.FirstOrDefault(c =>
+            c.Name.GetValueOrDefault("en")?.Equals("Dodo", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.NotNull(dodo);
+        Assert.Equal(1u, dodo.RowId);
+        Assert.Equal(4, dodo.Top);
+        Assert.Equal(3, dodo.Bottom);
+        Assert.Equal(4, dodo.Left);
+        Assert.Equal(2, dodo.Right);
+        Assert.Equal(1, dodo.Stars);
+        Assert.Equal("Normal", dodo.Type);
+    }
+
+    [SkippableFact]
+    public void GetTripleTriadCards_KnownCard_Garuda_IsPrimal()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTripleTriadCardsResponse("Garuda");
+
+        var garuda = response.Cards.FirstOrDefault(c =>
+            c.Name.GetValueOrDefault("en")?.Equals("Garuda", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.NotNull(garuda);
+        Assert.Equal(7, garuda.Top);
+        Assert.Equal(1, garuda.Bottom);
+        Assert.Equal(7, garuda.Left);
+        Assert.Equal(6, garuda.Right);
+        Assert.Equal("Primal", garuda.Type);
+    }
+
+    [SkippableFact]
+    public void GetTripleTriadCards_AllCards_HaveValidStars()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTripleTriadCardsResponse(null, limit: 200);
+
+        Assert.All(response.Cards, c => Assert.InRange(c.Stars, 1, 5));
+    }
+
+    [SkippableFact]
+    public void GetTripleTriadCards_AllCards_TypeIsKnownValue()
+    {
+        SkipIfNoGamePath();
+
+        var validTypes = new[] { "Normal", "Primal", "Scion", "Society", "Garlean" };
+        var response = BuildTripleTriadCardsResponse(null, limit: 200);
+
+        Assert.All(response.Cards, c =>
+            Assert.Contains(c.Type, validTypes));
+    }
+
+    [SkippableFact]
+    public void GetTripleTriadCards_SomeCards_HaveDescriptions()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTripleTriadCardsResponse(null, limit: 200);
+
+        Assert.True(response.Cards.Any(c => c.Description is not null && c.Description.ContainsKey("en")),
+            "Expected at least some cards to have English descriptions.");
+    }
+
+    [SkippableFact]
+    public void GetTripleTriadCards_SomeCards_HaveAcquisitionSource()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTripleTriadCardsResponse(null, limit: 200);
+
+        Assert.True(response.Cards.Any(c => c.AcquisitionSource is not null),
+            "Expected at least some cards to have an acquisition source.");
+        Assert.True(response.Cards.Any(c => c.AcquisitionSource?.StartsWith("Challenge:") == true),
+            "Expected at least some NPC challenge cards.");
+        Assert.True(response.Cards.Any(c => c.AcquisitionSource?.StartsWith("Requires:") == true),
+            "Expected at least some quest-gated cards.");
+    }
+
+    [SkippableFact]
+    public void GetTripleTriadCards_MultiLanguage_HasJapaneseNames()
+    {
+        SkipIfNoGamePath();
+
+        var response = BuildTripleTriadCardsResponse("Garuda", langs: ["en", "ja"]);
+
+        Assert.NotEmpty(response.Cards);
+        var garuda = response.Cards.First();
+        Assert.True(garuda.Name.ContainsKey("ja"), "Garuda should have a Japanese name.");
+        Assert.False(string.IsNullOrWhiteSpace(garuda.Name["ja"]));
+        Assert.True(garuda.Description is null || garuda.Description.ContainsKey("ja"),
+            "Description should have Japanese if present.");
+    }
+
+    [SkippableFact]
+    public void GetTripleTriadCards_Pagination_OffsetAdvancesResults()
+    {
+        SkipIfNoGamePath();
+
+        var page0 = BuildTripleTriadCardsResponse(null, limit: 10, offset: 0);
+        var page1 = BuildTripleTriadCardsResponse(null, limit: 10, offset: 10);
+
+        Assert.Equal(10, page0.Cards.Length);
+        Assert.Equal(10, page1.Cards.Length);
+        Assert.Empty(page0.Cards.Select(c => c.RowId).Intersect(page1.Cards.Select(c => c.RowId)));
+        Assert.Equal(page0.TotalMatches, page1.TotalMatches);
     }
 
     // ── health / list_languages ────────────────────────────────────────────

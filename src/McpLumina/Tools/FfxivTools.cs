@@ -373,6 +373,28 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             return ToolHelper.Ok(BuildMateriaResponse(query, stat, lim, off, langs));
         });
 
+    // ── get_triple_triad_cards ────────────────────────────────────────────
+
+    [McpServerTool(Name = "get_triple_triad_cards")]
+    [Description(
+        "Returns Triple Triad card data including directional values (Top/Bottom/Left/Right), " +
+        "star rarity (1–5), card type (Normal/Primal/Scion/Society/Garlean), NPC sell price, " +
+        "flavor text description, and acquisition source (NPC challenger or prerequisite quest). " +
+        "Type and AcquisitionSource are resolved in the primary requested language. " +
+        "Use query to filter by card name substring. Use limit and offset for pagination.")]
+    public string GetTripleTriadCards(
+        [Description("Card name substring to filter by (case-insensitive). Omit to return all cards up to limit.")] string? query = null,
+        [Description("Maximum number of results (1–200). Default 50.")] int? limit = null,
+        [Description("Number of results to skip for pagination. Default 0.")] int? offset = null,
+        [Description("Comma-separated language codes. Defaults to server default.")] string? languages = null) =>
+        ToolHelper.Execute(() =>
+        {
+            var lim   = InputValidator.ValidateLimit(limit);
+            var off   = InputValidator.ValidateOffset(offset);
+            var langs = gameData.Languages.Resolve(InputValidator.ParseLanguages(languages));
+            return ToolHelper.Ok(BuildTripleTriadCardsResponse(query, lim, off, langs));
+        });
+
     // ── Private builders ─────────────────────────────────────────────────
 
     private JobsResponse BuildJobsResponse(string[] langs)
@@ -1686,6 +1708,148 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             Offset             = offset,
             Limit              = limit,
             Materia            = entries,
+            GameVersion        = gameData.GameVersion,
+            Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
+        };
+    }
+
+    private TripleTriadCardsResponse BuildTripleTriadCardsResponse(
+        string? query, int limit, int offset, string[] langs)
+    {
+        var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
+        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+
+        // Companion sheets (language-neutral data; load in primary lang for quest/NPC name resolution)
+        var residentSheet = GetSheet<TripleTriadCardResident>(primaryLang);
+        var eNpcResSheet  = GetSheet<ENpcResident>(primaryLang);
+
+        var allMatches = new List<(
+            uint RowId, string Name, string? Description, bool StartsWithVowel,
+            byte Top, byte Bottom, byte Left, byte Right,
+            int Stars, string Type, uint SaleValue,
+            string? AcquisitionSource, uint ObtainTypeIcon)>();
+
+        foreach (var row in GetSheet<TripleTriadCard>(primaryLang))
+        {
+            var name = row.Name.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (query is not null && !name.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+
+            var res = residentSheet.GetRowOrDefault(row.RowId);
+            if (res is null) continue;
+            var r = res.Value;
+
+            var desc = row.Description.ToString();
+            if (string.IsNullOrWhiteSpace(desc)) desc = null;
+
+            // Rarity: RowRef<TripleTriadCardRarity>.Stars (byte 1–5)
+            var stars = (int)r.TripleTriadCardRarity.Value.Stars;
+
+            // Card type: RowRef<TripleTriadCardType> — 0 or >4 = "Normal"
+            var typeId    = r.TripleTriadCardType.RowId;
+            var cardType  = typeId >= 1 && typeId <= 4
+                ? r.TripleTriadCardType.Value.Name.ToString()
+                : "Normal";
+
+            // Acquisition: prefer ENpcResident name (RowId ≥ 1,000,000), fall back to quest name
+            string? acqSource = null;
+            var acqId = r.Acquisition.RowId;
+            if (acqId >= 1_000_000)
+            {
+                var eRow = eNpcResSheet.GetRowOrDefault(acqId);
+                if (eRow.HasValue)
+                {
+                    var npcName = eRow.Value.Singular.ToString();
+                    if (!string.IsNullOrWhiteSpace(npcName))
+                        acqSource = $"Challenge: {npcName}";
+                }
+            }
+            if (acqSource is null && r.Quest.RowId > 0)
+            {
+                var questName = r.Quest.Value.Name.ToString();
+                if (!string.IsNullOrWhiteSpace(questName))
+                    acqSource = $"Requires: {questName}";
+            }
+
+            // Obtain type icon from TripleTriadCardObtain
+            var obtainIcon = r.AcquisitionType.RowId > 0 ? r.AcquisitionType.Value.Icon : 0u;
+
+            allMatches.Add((
+                row.RowId, name, desc, row.StartsWithVowel != 0,
+                r.Top, r.Bottom, r.Left, r.Right,
+                stars, cardType, r.SaleValue,
+                acqSource, obtainIcon));
+        }
+
+        var totalMatches = allMatches.Count;
+        var page         = allMatches.Skip(offset).Take(limit).ToList();
+
+        // Pass 2: secondary-language names + descriptions for paged rows only
+        var pageRowIds = new HashSet<uint>(page.Select(x => x.RowId));
+
+        var secondaryNames = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, string>();
+                    foreach (var row in GetSheet<TripleTriadCard>(lang))
+                    {
+                        if (!pageRowIds.Contains(row.RowId)) continue;
+                        var n = row.Name.ToString();
+                        if (!string.IsNullOrWhiteSpace(n)) idx[row.RowId] = n;
+                    }
+                    return idx;
+                });
+
+        var secondaryDescs = returned
+            .Where(l => l != primaryLang)
+            .ToDictionary(
+                lang => lang,
+                lang =>
+                {
+                    var idx = new Dictionary<uint, string>();
+                    foreach (var row in GetSheet<TripleTriadCard>(lang))
+                    {
+                        if (!pageRowIds.Contains(row.RowId)) continue;
+                        var d = row.Description.ToString();
+                        if (!string.IsNullOrWhiteSpace(d)) idx[row.RowId] = d;
+                    }
+                    return idx;
+                });
+
+        var entries = page.Select(c =>
+        {
+            var nameMap = new Dictionary<string, string> { [primaryLang] = c.Name };
+            foreach (var (lang, idx) in secondaryNames)
+                if (idx.TryGetValue(c.RowId, out var n)) nameMap[lang] = n;
+
+            Dictionary<string, string>? descMap = null;
+            if (c.Description is not null)
+            {
+                descMap = new Dictionary<string, string> { [primaryLang] = c.Description };
+                foreach (var (lang, idx) in secondaryDescs)
+                    if (idx.TryGetValue(c.RowId, out var d)) descMap[lang] = d;
+            }
+
+            return new TripleTriadCardEntry(
+                c.RowId, nameMap, descMap, c.StartsWithVowel,
+                c.Top, c.Bottom, c.Left, c.Right,
+                c.Stars, c.Type, c.SaleValue,
+                c.AcquisitionSource, c.ObtainTypeIcon);
+        }).ToArray();
+
+        return new TripleTriadCardsResponse
+        {
+            Query              = query,
+            LanguagesRequested = langs,
+            LanguagesReturned  = returned,
+            FallbackUsed       = fallback,
+            TotalMatches       = totalMatches,
+            Offset             = offset,
+            Limit              = limit,
+            Cards              = entries,
             GameVersion        = gameData.GameVersion,
             Timestamp          = DateTimeOffset.UtcNow.ToString("O"),
         };

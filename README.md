@@ -124,11 +124,12 @@ env:     McpLumina__GamePath = C:\Program Files (x86)\SquareEnix\FINAL FANTASY X
 
 ## Tools Reference
 
-The server exposes twenty-five tools across three categories:
+The server exposes twenty-seven tools across four categories:
 
 - **Server tools** — health, schema management, language info
 - **Generic sheet tools** — arbitrary access to any game data sheet
 - **FFXIV convenience tools** — pre-shaped responses for common game entities
+- **Supplemental tools** — community-maintained drop and supplement data (via [LuminaSupplemental](https://github.com/Critical-Impact/LuminaSupplemental))
 
 ---
 
@@ -763,6 +764,75 @@ Omit `status` to return all. Results are sorted current-first.
   ]
 }
 ```
+
+---
+
+### `get_mob_drops(monsterQuery?, itemQuery?, limit?, offset?, languages?)`
+
+Returns monster drop data from the community-maintained [LuminaSupplemental](https://github.com/Critical-Impact/LuminaSupplemental) dataset (2,644 monster→item pairs). Each entry links a monster to an item it can drop. No drop rate or quantity data is available — pairs only.
+
+| Parameter | Description |
+|---|---|
+| `monsterQuery` | Case-insensitive monster name substring filter |
+| `itemQuery` | Case-insensitive item name substring filter |
+| `limit` / `offset` | Pagination (max limit 200) |
+
+```json
+{
+  "totalMatches": 4,
+  "drops": [
+    {
+      "bNpcNameId": 2061,
+      "mobName":  { "en": "elder hapalit" },
+      "itemId":   5439,
+      "itemName": { "en": "Ogre Horn" }
+    }
+  ]
+}
+```
+
+> Both `monsterQuery` and `itemQuery` can be combined to narrow results to a specific monster/item pair.
+
+---
+
+### `get_triple_triad_cards(query?, limit?, offset?, languages?)`
+
+Returns Triple Triad card data joined from `TripleTriadCard` and `TripleTriadCardResident`. Includes directional gameplay values, star rarity, card type, sell price, flavor text, and acquisition source.
+
+| Parameter | Description |
+|---|---|
+| `query` | Case-insensitive card name substring filter |
+| `limit` / `offset` | Pagination (max limit 200) |
+
+```json
+{
+  "totalMatches": 465,
+  "cards": [
+    {
+      "rowId":       42,
+      "name":        { "en": "Garuda", "ja": "ガルーダ" },
+      "description": { "en": "Summoned by the Ixal tribes of Xelphatol..." },
+      "startsWithVowel": false,
+      "top":         7,
+      "bottom":      1,
+      "left":        7,
+      "right":       6,
+      "stars":       3,
+      "type":        "Primal",
+      "saleValue":   500,
+      "acquisitionSource": "Challenge: Vorsaile Heuloix",
+      "obtainTypeIcon":    60051
+    }
+  ]
+}
+```
+
+- **`stars`** — rarity tier 1–5 (★ to ★★★★★)
+- **`type`** — `Normal` | `Primal` | `Scion` | `Society` | `Garlean`
+- **`saleValue`** — NPC sell price in gil; `0` means unsellable
+- **`acquisitionSource`** — `"Challenge: [NPC name]"` for cards won from NPC challengers, `"Requires: [Quest name]"` for content-gated cards, or `null` if unknown
+- **`obtainTypeIcon`** — icon ID for the obtain method (0 if unavailable)
+- `type` and `acquisitionSource` are resolved in the primary requested language; `top`/`bottom`/`left`/`right` are language-neutral
 
 ---
 

@@ -182,6 +182,37 @@ public static class TomestoneStatuses
         SortOrder.TryGetValue(category, out var p) ? p : 99;
 }
 
+/// <summary>
+/// Hardcoded labels for TripleTriadCardObtain rows (RowId 1–14).
+/// The Addon.Text chain for these entries is mostly empty or fragmentary, so labels
+/// are derived from context. Those marked as inferred (*) may be imprecise.
+/// </summary>
+public static class TripleTriadObtainTypes
+{
+    // Index = TripleTriadCardObtain RowId. Index 0 is unused.
+    public static readonly string[] Labels =
+    [
+        "",                        // 0  (unused)
+        "Triple Triad tutorial",   // 1  confirmed
+        "Card shop",               // 2  *
+        "Card shop",               // 3  *
+        "Vendor",                  // 4  *
+        "FATE reward",             // 5  *
+        "NPC challenge reward",    // 6  confirmed
+        "Tournament reward",       // 7  confirmed ("Place in top rankings.")
+        "Venture purchase",        // 8  confirmed ("Random result from purchase:")
+        "Appraisal",               // 9  confirmed ("Random result from appraisal:")
+        "Deep dungeon",            // 10 *
+        "Unknown",                 // 11
+        "Treasure hunt",           // 12 confirmed ("Happy bunny treasure hunt.")
+        "Seasonal event",          // 13 confirmed ("Obtained from a seasonal event.")
+        "Vendor",                  // 14 *
+    ];
+
+    public static string Get(uint rowId) =>
+        rowId < (uint)Labels.Length ? Labels[rowId] : "";
+}
+
 public static class ServerInfo
 {
     public const string Version = "1.0.0";
