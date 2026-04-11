@@ -172,7 +172,7 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         var fire = response.Actions.FirstOrDefault(a =>
             a.Name.GetValueOrDefault("en") == "Fire");
         Assert.NotNull(fire);
-        Assert.Equal(7u, fire.ClassJobId);       // Thaumaturge
+        Assert.Equal(7u, fire.ClassJob?.Id);       // Thaumaturge
         Assert.Equal(2u, fire.ActionCategoryId); // Spell
         Assert.Equal(2000u, fire.CastTimeMs);
     }
@@ -187,7 +187,7 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
 
         Assert.NotEmpty(response.Actions);
         Assert.All(response.Actions, a =>
-            Assert.Equal(25u, a.ClassJobId));
+            Assert.Equal(25u, a.ClassJob?.Id));
     }
 
     [SkippableFact]
@@ -200,7 +200,7 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         Assert.NotEmpty(response.Actions);
         Assert.All(response.Actions, a =>
         {
-            Assert.Equal(25u, a.ClassJobId);
+            Assert.Equal(25u, a.ClassJob?.Id);
             Assert.Contains("Blizzard", a.Name.GetValueOrDefault("en") ?? string.Empty,
                 StringComparison.OrdinalIgnoreCase);
         });
@@ -444,7 +444,7 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         var response = BuildTraitsResponse(null, 24);
 
         Assert.NotEmpty(response.Traits);
-        Assert.All(response.Traits, t => Assert.Equal(24u, t.ClassJobId));
+        Assert.All(response.Traits, t => Assert.Equal(24u, t.ClassJob?.Id));
     }
 
     [SkippableFact]
@@ -466,7 +466,7 @@ public sealed class FfxivToolsIntegrationTests : IntegrationTestBase
         var response = BuildTraitsResponse("Enhanced Healing Magic", null);
 
         Assert.NotEmpty(response.Traits);
-        var whmTrait = response.Traits.FirstOrDefault(t => t.ClassJobId == 24u);
+        var whmTrait = response.Traits.FirstOrDefault(t => t.ClassJob?.Id == 24u);
         Assert.NotNull(whmTrait);
         Assert.Equal(85u, whmTrait.Level);
     }

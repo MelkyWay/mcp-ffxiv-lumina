@@ -12,13 +12,16 @@ public sealed record ActionsResponse : BaseResponse
     public ActionEntry[]  Actions            { get; init; } = [];
 }
 
+/// <summary>Resolved ClassJob reference with id and localized name.</summary>
+public sealed record ClassJobRef(uint Id, Dictionary<string, string> Name);
+
 public sealed record ActionEntry(
     uint   RowId,
     /// <summary>Localized action name keyed by language code.</summary>
     Dictionary<string, string> Name,
     uint   Icon,
-    /// <summary>ClassJob row ID this action belongs to. 0 = role/cross-class.</summary>
-    uint   ClassJobId,
+    /// <summary>ClassJob this action belongs to. Null = role/cross-class action.</summary>
+    ClassJobRef? ClassJob,
     byte   ClassJobLevel,
     /// <summary>ActionCategory row ID (1=Auto-attack, 2=Spell, 3=Weaponskill, 4=Ability, etc.).</summary>
     uint   ActionCategoryId,

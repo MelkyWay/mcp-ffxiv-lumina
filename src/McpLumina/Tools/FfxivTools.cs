@@ -750,13 +750,28 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
         var primaryLang = returned.Contains(gameData.Languages.DefaultLanguage) ? gameData.Languages.DefaultLanguage : returned[0];
 
-        // Build ActionCategory name lookup (small sheet, all langs).
+        // Build ActionCategory name lookup (small sheet, primary lang).
         var categoryNames = new Dictionary<uint, string>();
         foreach (var cat in GetSheet<ActionCategory>(primaryLang))
         {
             var n = cat.Name.ToString();
             if (!string.IsNullOrWhiteSpace(n)) categoryNames[cat.RowId] = n;
         }
+
+        // Build ClassJob name lookup per returned language (small sheet, ~45 rows).
+        var classJobNames = returned.ToDictionary(
+            lang => lang,
+            lang =>
+            {
+                var idx = new Dictionary<uint, string>();
+                foreach (var row in GetSheet<ClassJob>(lang))
+                {
+                    if (row.RowId == 0) continue;
+                    var n = row.Name.ToString();
+                    if (!string.IsNullOrWhiteSpace(n)) idx[row.RowId] = n;
+                }
+                return idx;
+            });
 
         // Pass 1: scan primary language, apply filters, collect all fields.
         var allMatches = new List<(uint RowId, string Name, uint Icon, uint ClassJobId,
@@ -812,11 +827,18 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             foreach (var (lang, idx) in secondaryNames)
                 if (idx.TryGetValue(m.RowId, out var n)) nameMap[lang] = n;
 
+            ClassJobRef? classJob = m.ClassJobId == 0 ? null : new ClassJobRef(
+                m.ClassJobId,
+                returned
+                    .Select(l => (l, classJobNames[l].GetValueOrDefault(m.ClassJobId, string.Empty)))
+                    .Where(x => !string.IsNullOrEmpty(x.Item2))
+                    .ToDictionary(x => x.l, x => x.Item2));
+
             return new ActionEntry(
                 RowId:              m.RowId,
                 Name:               nameMap,
                 Icon:               m.Icon,
-                ClassJobId:         m.ClassJobId,
+                ClassJob:           classJob,
                 ClassJobLevel:      m.Level,
                 ActionCategoryId:   m.CategoryId,
                 ActionCategoryName: categoryNames.GetValueOrDefault(m.CategoryId, string.Empty),
@@ -1058,6 +1080,21 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
         var primaryLang = returned.Contains(gameData.Languages.DefaultLanguage) ? gameData.Languages.DefaultLanguage : returned[0];
 
+        // Build ClassJob name lookup per returned language (small sheet, ~45 rows).
+        var classJobNames = returned.ToDictionary(
+            lang => lang,
+            lang =>
+            {
+                var idx = new Dictionary<uint, string>();
+                foreach (var row in GetSheet<ClassJob>(lang))
+                {
+                    if (row.RowId == 0) continue;
+                    var n = row.Name.ToString();
+                    if (!string.IsNullOrWhiteSpace(n)) idx[row.RowId] = n;
+                }
+                return idx;
+            });
+
         // Pass 1: scan primary language, apply filters, collect fields.
         var allMatches = new List<(uint RowId, string Name, int Icon, uint ClassJobId, byte Level)>();
 
@@ -1104,12 +1141,19 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
             foreach (var (lang, idx) in secondaryNames)
                 if (idx.TryGetValue(m.RowId, out var n)) nameMap[lang] = n;
 
+            ClassJobRef? classJob = m.ClassJobId == 0 ? null : new ClassJobRef(
+                m.ClassJobId,
+                returned
+                    .Select(l => (l, classJobNames[l].GetValueOrDefault(m.ClassJobId, string.Empty)))
+                    .Where(x => !string.IsNullOrEmpty(x.Item2))
+                    .ToDictionary(x => x.l, x => x.Item2));
+
             return new TraitEntry(
-                RowId:      m.RowId,
-                Name:       nameMap,
-                Icon:       (uint)m.Icon,
-                ClassJobId: m.ClassJobId,
-                Level:      m.Level);
+                RowId:    m.RowId,
+                Name:     nameMap,
+                Icon:     (uint)m.Icon,
+                ClassJob: classJob,
+                Level:    m.Level);
         }).ToArray();
 
         return new TraitsResponse

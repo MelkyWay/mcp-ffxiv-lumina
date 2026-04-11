@@ -17,8 +17,8 @@ public sealed record TraitEntry(
     /// <summary>Localized trait name keyed by language code.</summary>
     Dictionary<string, string> Name,
     uint   Icon,
-    /// <summary>ClassJob row ID this trait belongs to. 0 = shared/role trait.</summary>
-    uint   ClassJobId,
+    /// <summary>ClassJob this trait belongs to. Null = shared/role trait.</summary>
+    ClassJobRef? ClassJob,
     /// <summary>Level at which this trait is learned.</summary>
     uint   Level
 );
