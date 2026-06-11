@@ -41,7 +41,7 @@ public sealed class GameDataService : IDisposable
         _config = options.Value;
         _schema = schema;
         _logger = logger;
-
+        
         var luminaOptions = new LuminaOptions
         {
             PanicOnSheetChecksumMismatch = false,
@@ -195,9 +195,7 @@ public sealed class GameDataService : IDisposable
             ? new SchemaInfo(
                 Available: true,
                 Version:   _schema.Version,
-                Note: "Column names are derived from EXDSchema and are best-effort. " +
-                      "For sheets with arrays or mixed column types (e.g. Item), the names may not " +
-                      "match binary column order. Use Column_N syntax for reliable access on unknown sheets.")
+                Note: "Column names are derived from EXDSchema and are best-effort.")
             : new SchemaInfo(Available: false, Version: null, Note: null);
 
         return new SheetDescribeResponse
@@ -325,7 +323,7 @@ public sealed class GameDataService : IDisposable
         var primaryLang = LanguageService.ToLuminaLanguage(primaryCode);
 
         var sheet       = _genericReader.LoadSheet(sheetName, primaryLang);
-        var columns     = sheet.Columns;
+        var columns     = sheet.Columns.Select((col, idx) => (colIdx: idx, Type: col.Type, col)).OrderBy(it => it.col.Offset).ToImmutableList();
         var schemaNames = _schema.GetColumnNames(sheetName, columns.Count);
 
         // Resolve named filters and return fields to column indices.
@@ -367,7 +365,7 @@ public sealed class GameDataService : IDisposable
                 foreach (var (colIdx, expected) in columnFilters)
                 {
                     if (colIdx >= columns.Count) { passesFilter = false; break; }
-                    var val = _genericReader.ReadColumnValue(row, columns[colIdx], colIdx);
+                    var val = _genericReader.ReadColumnValue(row, columns[colIdx].col, columns[colIdx].colIdx);
                     try   { if (val is null || Convert.ToInt64(val) != expected) { passesFilter = false; break; } }
                     catch (Exception ex) when (ex is InvalidCastException or OverflowException or FormatException)
                           { passesFilter = false; break; }
@@ -378,7 +376,7 @@ public sealed class GameDataService : IDisposable
             bool isMatch = false;
             foreach (var colIdx in textColIndices)
             {
-                var value = _genericReader.ReadColumnValue(row, columns[colIdx], colIdx) as string;
+                var value = _genericReader.ReadColumnValue(row, columns[colIdx].col, columns[colIdx].colIdx) as string;
                 if (value is not null && value.Contains(lowerQuery, StringComparison.OrdinalIgnoreCase))
                 {
                     isMatch = true;
