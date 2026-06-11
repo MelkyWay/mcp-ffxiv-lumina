@@ -4,6 +4,7 @@ using Lumina.Data.Structs.Excel;
 using Lumina.Excel;
 using McpLumina.Models;
 using McpLumina.Models.Responses;
+using System.Collections.Immutable;
 
 namespace McpLumina.Services;
 
@@ -66,7 +67,7 @@ public sealed class GenericSheetReader(GameData gameData)
 
     public ColumnInfo[] GetColumns(RawExcelSheet sheet, string[]? schemaNames = null)
     {
-        return sheet.Columns
+        return sheet.Columns.OrderBy(col => col.Offset)
             .Select((col, i) => new ColumnInfo(i, schemaNames?[i] ?? $"Column_{i}", ColumnTypeToString(col.Type)))
             .ToArray();
     }
@@ -119,7 +120,7 @@ public sealed class GenericSheetReader(GameData gameData)
         string[]? columnNames = null,
         HashSet<int>? returnFieldIndices = null)
     {
-        var columns  = primarySheet.Columns;
+        var columns  = primarySheet.Columns.Select((col, idx) => (colIdx: idx, col)).OrderBy(it => it.col.Offset).ToImmutableList();
         var capacity = returnFieldIndices?.Count ?? columns.Count;
         var fields   = new Dictionary<string, object?>(capacity);
 
@@ -128,9 +129,9 @@ public sealed class GenericSheetReader(GameData gameData)
             if (returnFieldIndices is not null && !returnFieldIndices.Contains(i))
                 continue;
 
-            var col    = columns[i];
-            var name   = columnNames?[i] ?? $"Column_{i}";
-            var isText = col.Type == ExcelColumnDataType.String;
+            var (colIdx, col)    = columns[i];
+            var name             = columnNames?[i] ?? $"Column_{i}";
+            var isText           = col.Type == ExcelColumnDataType.String;
 
             if (isText && languages.Length > 1)
             {
@@ -142,13 +143,13 @@ public sealed class GenericSheetReader(GameData gameData)
                     var langRow = ReadRow(langSheet, primaryRow.RowId);
                     langMap[lang] = langRow is null
                         ? null
-                        : ReadColumnValue(langRow.Value, col, i) as string;
+                        : ReadColumnValue(langRow.Value, col, colIdx) as string;
                 }
                 fields[name] = langMap;
             }
             else
             {
-                fields[name] = ReadColumnValue(primaryRow, col, i);
+                fields[name] = ReadColumnValue(primaryRow, col, colIdx);
             }
         }
 

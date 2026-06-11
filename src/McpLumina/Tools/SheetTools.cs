@@ -23,9 +23,6 @@ public sealed class SheetTools(GameDataService gameData, ResponseCacheService ca
         "Returns column metadata and approximate row count for the named sheet. " +
         "When EXDSchema is configured, columns are reported with their real field names (e.g. 'Name', 'ClassJob'). " +
         "Otherwise columns are reported as 'Column_{index}'. " +
-        "The response includes a 'schema' object with an accuracy note: EXDSchema names are best-effort and " +
-        "may not match binary column order for complex sheets (arrays, mixed types). " +
-        "Column_N syntax always resolves correctly regardless of schema. " +
         "Use this before get_row or search_rows to understand available fields.")]
     public string DescribeSheet(
         [Description("Sheet name, e.g. 'Action', 'Item', 'ClassJob'. Case-sensitive.")] string sheet) =>
