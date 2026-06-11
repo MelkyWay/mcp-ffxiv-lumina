@@ -96,22 +96,6 @@ public static class RoleLabels
 }
 
 /// <summary>
-/// Known language codes supported by the server.
-/// </summary>
-public static class KnownLanguageCodes
-{
-    public const string En = "en";
-    public const string Fr = "fr";
-    public const string De = "de";
-    public const string Ja = "ja";
-
-    public static readonly IReadOnlyList<string> All = [En, Fr, De, Ja];
-
-    public static bool Contains(string code) =>
-        All.Contains(code, StringComparer.OrdinalIgnoreCase);
-}
-
-/// <summary>
 /// Valid values for the <c>kind</c> parameter of get_localized_labels.
 /// </summary>
 public static class LabelKinds

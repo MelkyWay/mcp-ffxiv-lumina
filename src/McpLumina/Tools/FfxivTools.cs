@@ -17,7 +17,7 @@ namespace McpLumina.Tools;
 /// ContentFinderCondition) for correct, maintenance-free field access.
 /// </summary>
 [McpServerToolType]
-public sealed class FfxivTools(GameDataService gameData, ResponseCacheService cache)
+public sealed class FfxivTools(GameDataService gameData, ResponseCacheService cache, LanguageService langSvc)
 {
     // ── get_jobs ─────────────────────────────────────────────────────────
 
@@ -418,7 +418,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
                 return idx;
             });
 
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
         var entries     = new List<JobEntry>();
 
         foreach (var row in GetSheet<ClassJob>(primaryLang))
@@ -461,7 +461,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private ItemsResponse BuildItemsResponse(string? query, int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         // Pass 1: scan primary language sheet, filter by query, collect all fields.
         var allMatches = new List<(uint RowId, string Singular, string Display, string Desc,
@@ -574,7 +574,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
                 return idx;
             });
 
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
         var primary     = GetSheet<ContentFinderCondition>(primaryLang);
         var entries     = new List<DutyEntry>();
 
@@ -748,7 +748,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private ActionsResponse BuildActionsResponse(string? query, uint? classJobId, int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         // Build ActionCategory name lookup (small sheet, all langs).
         var categoryNames = new Dictionary<uint, string>();
@@ -845,7 +845,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private MountsResponse BuildMountsResponse(string? query, int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         var allMatches = new List<(uint RowId, string Name, uint Icon, byte IsFlying, byte ExtraSeats)>();
 
@@ -905,7 +905,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private MinionsResponse BuildMinionsResponse(string? query, int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         var allMatches = new List<(uint RowId, string Name, uint Icon)>();
 
@@ -965,7 +965,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private AchievementsResponse BuildAchievementsResponse(string? query, int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         // Build AchievementCategory name lookup (small sheet).
         var categoryNames = new Dictionary<uint, string>();
@@ -1056,7 +1056,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private TraitsResponse BuildTraitsResponse(string? query, uint? classJobId, int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         // Pass 1: scan primary language, apply filters, collect fields.
         var allMatches = new List<(uint RowId, string Name, int Icon, uint ClassJobId, byte Level)>();
@@ -1130,7 +1130,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private StatusesResponse BuildStatusesResponse(string? query, string? category, int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         byte? categoryFilter = category?.ToLowerInvariant() switch
         {
@@ -1248,7 +1248,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
                 return idx;
             });
 
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
         var entries     = new List<RaceEntry>();
 
         foreach (var row in GetSheet<Race>(primaryLang))
@@ -1328,7 +1328,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private WeatherResponse BuildWeatherResponse(string? query, int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         var allMatches = new List<(uint RowId, string Name, uint Icon)>();
 
@@ -1388,7 +1388,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private TitlesResponse BuildTitlesResponse(string? query, int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         var allMatches = new List<(uint RowId, string Masc, string Fem, bool IsPrefix)>();
 
@@ -1458,7 +1458,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private CurrenciesResponse BuildCurrenciesResponse(string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         // Currencies: ItemUICategory=63, FilterGroup=16, StackSize>1.
         // UIcat=63 alone is too broad (includes bardings, floatstones, etc.).
@@ -1518,7 +1518,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private TomestoneCurrenciesResponse BuildTomestoneCurrenciesResponse(string? statusFilter, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         // Load TomestonesItem — authoritative catalog of tomestone currencies.
         // Column 0 = Item row ID, Column 1 = TomestoneId (internal, unused), Column 2 = Category.
@@ -1607,7 +1607,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     private MateriaResponse BuildMateriaResponse(string? query, string? stat, int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         // Step 1: Build BaseParam name index (always English — stat names are locale-invariant proper nouns).
         var baseParamSheet = gameData.GenericReader.LoadSheet("BaseParam", Language.English);
@@ -1717,7 +1717,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
         string? query, int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains("en") ? "en" : returned[0];
+        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
 
         // Companion sheets (language-neutral data; load in primary lang for quest/NPC name resolution)
         var residentSheet = GetSheet<TripleTriadCardResident>(primaryLang);
@@ -1858,7 +1858,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
     // ── Helpers ───────────────────────────────────────────────────────────
 
     private ExcelSheet<T> GetSheet<T>(string lang) where T : struct, IExcelRow<T> =>
-        gameData.Raw.Excel.GetSheet<T>(gameData.Languages.ToLuminaLanguage(lang));
+        gameData.Raw.Excel.GetSheet<T>(LanguageService.ToLuminaLanguage(lang));
 
     private static string? ResolveCategory(int contentTypeId, string name) => contentTypeId switch
     {

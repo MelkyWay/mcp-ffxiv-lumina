@@ -1,3 +1,5 @@
+using Lumina.Data;
+
 namespace McpLumina.Configuration;
 
 public sealed class ServerConfig
@@ -8,7 +10,7 @@ public sealed class ServerConfig
     public string GamePath { get; set; } = string.Empty;
 
     /// <summary>Default language when none is specified by the caller. One of: en, fr, de, ja.</summary>
-    public string LanguageDefault { get; set; } = "en";
+    public string LanguageDefault { get; set; } = LanguageUtil.GetLanguageStr(Language.English);
 
     /// <summary>Enable in-memory response caching.</summary>
     public bool CacheEnabled { get; set; } = true;

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using Lumina;
 using Lumina.Data;
 using Lumina.Excel;
@@ -44,7 +45,7 @@ public sealed class GameDataService : IDisposable
         var luminaOptions = new LuminaOptions
         {
             PanicOnSheetChecksumMismatch = false,
-            DefaultExcelLanguage         = Language.English,
+            DefaultExcelLanguage         = LanguageService.ToLuminaLanguage(_config.LanguageDefault),
         };
 
         _gameData      = new GameData(ResolveSqpackPath(_config.GamePath), luminaOptions);
@@ -139,7 +140,7 @@ public sealed class GameDataService : IDisposable
 
     private LanguagesResponse BuildLanguagesResponse()
     {
-        var entries = KnownLanguageCodes.All.Select(code => new LanguageEntry(
+        var entries = LanguageUtil.LanguageMap.Values.Where(it => it.Length > 0).Select(code => new LanguageEntry(
             Code:        code,
             DisplayName: _languages.GetDisplayName(code),
             Available:   _languages.AvailableLanguages.Contains(code)
@@ -179,15 +180,11 @@ public sealed class GameDataService : IDisposable
         var columns     = _genericReader.GetColumns(sheet, schemaNames);
 
         // Probe which language variants are available for this sheet.
-        var probe = new[] {
-            ("en", Language.English), ("fr", Language.French),
-            ("de", Language.German),  ("ja", Language.Japanese)
-        };
-        var sheetLangs = probe
-            .Where(p => _languages.AvailableLanguages.Contains(p.Item1))
+        var sheetLangs = LanguageService.CodeToLumina
+            .Where(p => _languages.AvailableLanguages.Contains(p.Key))
             .Select(p =>
             {
-                try { _genericReader.LoadSheet(sheetName, p.Item2); return p.Item1; }
+                try { _genericReader.LoadSheet(sheetName, p.Value); return p.Key; }
                 catch { return null; }
             })
             .Where(l => l is not null)
@@ -221,7 +218,7 @@ public sealed class GameDataService : IDisposable
     {
         var (returned, fallback) = _languages.ApplyFallback(languages);
         var primaryCode  = returned.FirstOrDefault() ?? _config.LanguageDefault;
-        var primaryLang  = _languages.ToLuminaLanguage(primaryCode);
+        var primaryLang  = LanguageService.ToLuminaLanguage(primaryCode);
 
         var sheet       = _genericReader.LoadSheet(sheetName, primaryLang);
         var schemaNames = _schema.GetColumnNames(sheetName, sheet.Columns.Count);
@@ -232,7 +229,7 @@ public sealed class GameDataService : IDisposable
 
         var fields = _genericReader.RowToFields(
             sheet, parser, returned,
-            lang => TryLoadSheet(sheetName, _languages.ToLuminaLanguage(lang)),
+            lang => TryLoadSheet(sheetName, LanguageService.ToLuminaLanguage(lang)),
             schemaNames, returnIndices);
 
         return new RowResponse
@@ -254,7 +251,7 @@ public sealed class GameDataService : IDisposable
     {
         var (returned, fallback) = _languages.ApplyFallback(languages);
         var primaryCode = returned.FirstOrDefault() ?? _config.LanguageDefault;
-        var primaryLang = _languages.ToLuminaLanguage(primaryCode);
+        var primaryLang = LanguageService.ToLuminaLanguage(primaryCode);
 
         var sheet       = _genericReader.LoadSheet(sheetName, primaryLang);
         var schemaNames = _schema.GetColumnNames(sheetName, sheet.Columns.Count);
@@ -276,7 +273,7 @@ public sealed class GameDataService : IDisposable
             {
                 var fields = _genericReader.RowToFields(
                     sheet, row, returned,
-                    lang => TryLoadSheet(sheetName, _languages.ToLuminaLanguage(lang)),
+                    lang => TryLoadSheet(sheetName, LanguageService.ToLuminaLanguage(lang)),
                     schemaNames, returnIndices);
 
                 rows.Add(new RowResponse
@@ -325,7 +322,7 @@ public sealed class GameDataService : IDisposable
     {
         var (returned, fallback) = _languages.ApplyFallback(languages);
         var primaryCode = returned.FirstOrDefault() ?? _config.LanguageDefault;
-        var primaryLang = _languages.ToLuminaLanguage(primaryCode);
+        var primaryLang = LanguageService.ToLuminaLanguage(primaryCode);
 
         var sheet       = _genericReader.LoadSheet(sheetName, primaryLang);
         var columns     = sheet.Columns;
@@ -393,7 +390,7 @@ public sealed class GameDataService : IDisposable
 
             var fields = _genericReader.RowToFields(
                 sheet, row, returned,
-                lang => TryLoadSheet(sheetName, _languages.ToLuminaLanguage(lang)),
+                lang => TryLoadSheet(sheetName, LanguageService.ToLuminaLanguage(lang)),
                 schemaNames, returnIndices);
 
             matches.Add(new RowResponse
@@ -543,10 +540,8 @@ public sealed class GameDataService : IDisposable
     private LanguageService BuildLanguageService()
     {
         var available = new HashSet<string>();
-        var probe     = new[] { ("en", Language.English), ("fr", Language.French),
-                                ("de", Language.German),  ("ja", Language.Japanese) };
 
-        foreach (var (code, lang) in probe)
+        foreach (var (code, lang) in LanguageService.CodeToLumina)
         {
             try
             {
