@@ -34,7 +34,7 @@ public sealed class HealthTool(GameDataService gameData, ResponseCacheService ca
 
     [McpServerTool(Name = "list_languages")]
     [Description(
-        "Returns the language codes globally available in this FFXIV installation (en/fr/de/ja). " +
+        "Returns the language codes globally available in this FFXIV installation. " +
         "Availability is detected by probing language-suffixed EXD files on disk. " +
         "Note: this is a global check — individual sheets may have a different language subset.")]
     public string ListLanguages() =>

@@ -6,7 +6,7 @@ public sealed record LanguagesResponse : BaseResponse
 }
 
 public sealed record LanguageEntry(
-    string Code,         // "en", "fr", "de", "ja"
+    string Code,         // "en", "fr", "de", "ja" and so on
     string DisplayName,  // "English", "French", "German", "Japanese"
     bool   Available     // detected on disk for this game installation
 );

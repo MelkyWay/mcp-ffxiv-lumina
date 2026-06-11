@@ -9,26 +9,27 @@ namespace McpLumina.Services;
 /// </summary>
 public sealed class LanguageService
 {
-    private static readonly IReadOnlyList<string> FallbackChain = KnownLanguageCodes.All;
+    private static readonly IReadOnlyList<string> FallbackChain = LanguageUtil.LanguageMap
+            .Where(kvp => !string.IsNullOrEmpty(kvp.Value))
+            .OrderBy(kvp => kvp.Value switch
+            {
+                // Order By Special Game Version Release Date
+                "en" => 1, // For Global
+                "chs" => 2, // For Chinese Simplified
+                "ko" => 3, // For Korean
+                "cht" => 4, // For Chinese Traditional
+                "tc" => 5, // For Chinese Traditional
+                _ => 100,
+            })
+            .Select(kvp => kvp.Value)
+            .ToList();
 
-    private static readonly Dictionary<string, Language> CodeToLumina = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["en"] = Language.English,
-        ["fr"] = Language.French,
-        ["de"] = Language.German,
-        ["ja"] = Language.Japanese,
-    };
-
-    private static readonly Dictionary<string, string> DisplayNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["en"] = "English",
-        ["fr"] = "French",
-        ["de"] = "German",
-        ["ja"] = "Japanese",
-    };
+    public static readonly Dictionary<string, Language> CodeToLumina = LanguageUtil.LanguageMap.ToDictionary(x => x.Value, x => x.Key);
 
     private readonly HashSet<string> _available;
     private readonly string _defaultLanguage;
+
+    public string DefaultLanguage => _defaultLanguage;
 
     public LanguageService(HashSet<string> availableLanguages, string defaultLanguage)
     {
@@ -39,7 +40,7 @@ public sealed class LanguageService
     public IReadOnlyCollection<string> AvailableLanguages => _available;
 
     public string GetDisplayName(string code) =>
-        DisplayNames.TryGetValue(code, out var name) ? name : code;
+        CodeToLumina.TryGetValue(code, out var lang) ? lang.ToString() : code;
 
     /// <summary>
     /// Resolves a list of requested language codes.
@@ -94,11 +95,14 @@ public sealed class LanguageService
         return (returned.Distinct().ToArray(), fallbackUsed);
     }
 
-    public Language ToLuminaLanguage(string code) =>
+    public static Language ToLuminaLanguage(string code) =>
         CodeToLumina.TryGetValue(code, out var lang)
             ? lang
             : throw new LanguageUnavailableException(code);
 
-    public static bool IsKnownCode(string code) =>
-        CodeToLumina.ContainsKey(code.ToLowerInvariant());
+    public static Language? TryToLuminaLanguage(string code) =>
+        CodeToLumina.TryGetValue(code, out var lang)
+            ? lang
+            : null;
+
 }

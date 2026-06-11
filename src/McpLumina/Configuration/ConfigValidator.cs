@@ -1,5 +1,7 @@
+using Lumina.Data;
 using McpLumina.Constants;
 using McpLumina.Models;
+using McpLumina.Services;
 using Microsoft.Extensions.Logging;
 
 namespace McpLumina.Configuration;
@@ -34,9 +36,9 @@ public sealed class ConfigValidator(ILogger<ConfigValidator> logger)
         }
 
         // languageDefault
-        if (!KnownLanguageCodes.Contains(config.LanguageDefault))
+        if (!LanguageService.TryToLuminaLanguage(config.LanguageDefault).HasValue)
         {
-            errors.Add($"languageDefault '{config.LanguageDefault}' is not valid. Allowed values: {string.Join(", ", KnownLanguageCodes.All)}.");
+            errors.Add($"languageDefault '{config.LanguageDefault}' is not valid. Allowed values: {string.Join(", ", LanguageUtil.LanguageMap.Values.Where(it => it.Length > 0))}.");
         }
 
         // cacheTTLSeconds

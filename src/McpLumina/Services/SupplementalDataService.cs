@@ -75,7 +75,7 @@ public sealed class SupplementalDataService
 
         foreach (var langCode in gameData.Languages.AvailableLanguages)
         {
-            var lumLang = gameData.Languages.ToLuminaLanguage(langCode);
+            var lumLang = LanguageService.ToLuminaLanguage(langCode);
             var idx     = new Dictionary<uint, string>();
 
             try
