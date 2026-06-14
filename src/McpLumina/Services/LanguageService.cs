@@ -24,7 +24,9 @@ public sealed class LanguageService
             .Select(kvp => kvp.Value)
             .ToList();
 
-    public static readonly Dictionary<string, Language> CodeToLumina = LanguageUtil.LanguageMap.ToDictionary(x => x.Value, x => x.Key);
+    public static readonly Dictionary<string, Language> CodeToLumina = LanguageUtil.LanguageMap
+        .Where(kvp => !string.IsNullOrEmpty(kvp.Value))
+        .ToDictionary(x => x.Value, x => x.Key);
 
     private readonly HashSet<string> _available;
     private readonly string _defaultLanguage;
@@ -104,5 +106,19 @@ public sealed class LanguageService
         CodeToLumina.TryGetValue(code, out var lang)
             ? lang
             : null;
+
+    /// <summary>
+    /// Resolves the effective default language given the configured value and the set of
+    /// languages actually present in the local install.
+    /// Falls back to "en" if the configured code is unavailable, then to the first available
+    /// language if English is also absent.
+    /// </summary>
+    public static string ResolveEffectiveDefault(string configured, HashSet<string> available)
+    {
+        var code = configured.ToLowerInvariant();
+        return available.Contains(code) ? code
+             : available.Contains("en") ? "en"
+             : available.FirstOrDefault() ?? "en";
+    }
 
 }

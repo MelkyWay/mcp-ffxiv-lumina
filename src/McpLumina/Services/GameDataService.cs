@@ -555,7 +555,14 @@ public sealed class GameDataService : IDisposable
             available.Add("en");
         }
 
-        return new LanguageService(available, _config.LanguageDefault.ToLowerInvariant());
+        var configured       = _config.LanguageDefault.ToLowerInvariant();
+        var effectiveDefault = LanguageService.ResolveEffectiveDefault(configured, available);
+        if (effectiveDefault != configured)
+            _logger.LogWarning(
+                "Configured languageDefault '{Configured}' is not available in this install; using '{Fallback}' instead.",
+                configured, effectiveDefault);
+
+        return new LanguageService(available, effectiveDefault);
     }
 
     public void Dispose() => _gameData?.Dispose();

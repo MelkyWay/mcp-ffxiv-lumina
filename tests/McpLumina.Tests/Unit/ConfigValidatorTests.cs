@@ -125,6 +125,8 @@ public sealed class ConfigValidatorTests
     [InlineData("fr")]
     [InlineData("de")]
     [InlineData("ja")]
+    [InlineData("ko")]
+    [InlineData("chs")]
     public void ValidateOrThrow_KnownLanguage_Passes(string lang)
     {
         var root      = CreateFakeFfxivRoot();

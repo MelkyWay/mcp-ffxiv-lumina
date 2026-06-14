@@ -82,4 +82,54 @@ public sealed class LanguageFallbackTests
         Assert.Equal("en", returned[0]);
         Assert.True(fb);
     }
+
+    // ── ResolveEffectiveDefault ───────────────────────────────────────────
+
+    [Fact]
+    public void ResolveEffectiveDefault_ConfiguredIsAvailable_ReturnsConfigured()
+    {
+        var result = LanguageService.ResolveEffectiveDefault("ko", new HashSet<string> { "ko", "en" });
+        Assert.Equal("ko", result);
+    }
+
+    [Fact]
+    public void ResolveEffectiveDefault_ConfiguredUnavailable_FallsBackToEnglish()
+    {
+        var result = LanguageService.ResolveEffectiveDefault("ko", new HashSet<string> { "en", "fr" });
+        Assert.Equal("en", result);
+    }
+
+    [Fact]
+    public void ResolveEffectiveDefault_ConfiguredUnavailableAndNoEnglish_FallsBackToFirst()
+    {
+        var result = LanguageService.ResolveEffectiveDefault("ko", new HashSet<string> { "chs" });
+        Assert.Equal("chs", result);
+    }
+
+    [Fact]
+    public void ResolveEffectiveDefault_NormalizesCase()
+    {
+        var result = LanguageService.ResolveEffectiveDefault("EN", new HashSet<string> { "en" });
+        Assert.Equal("en", result);
+    }
+
+    // ── CodeToLumina ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void CodeToLumina_DoesNotContainEmptyKey()
+    {
+        Assert.DoesNotContain(string.Empty, LanguageService.CodeToLumina.Keys);
+    }
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("fr")]
+    [InlineData("de")]
+    [InlineData("ja")]
+    [InlineData("ko")]
+    [InlineData("chs")]
+    public void CodeToLumina_ContainsExpectedLanguageCodes(string code)
+    {
+        Assert.Contains(code, LanguageService.CodeToLumina.Keys);
+    }
 }
