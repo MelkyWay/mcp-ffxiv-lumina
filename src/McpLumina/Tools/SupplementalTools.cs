@@ -12,7 +12,7 @@ namespace McpLumina.Tools;
 /// All supplemental data is loaded eagerly at startup from embedded CSV assets.
 /// </summary>
 [McpServerToolType]
-public sealed class SupplementalTools(SupplementalDataService supplemental, GameDataService gameData, LanguageService langSvc)
+public sealed class SupplementalTools(SupplementalDataService supplemental, GameDataService gameData)
 {
     // ── get_mob_drops ─────────────────────────────────────────────────────
 
@@ -44,7 +44,7 @@ public sealed class SupplementalTools(SupplementalDataService supplemental, Game
         int limit, int offset, string[] langs)
     {
         var (returned, fallback) = gameData.Languages.ApplyFallback(langs);
-        var primaryLang = returned.Contains(langSvc.DefaultLanguage) ? langSvc.DefaultLanguage : returned[0];
+        var primaryLang = returned.Contains(gameData.Languages.DefaultLanguage) ? gameData.Languages.DefaultLanguage : returned[0];
 
         var bnpcPrimary = supplemental.GetBNpcNames(primaryLang);
         var itemPrimary = supplemental.GetItemNames(primaryLang);
