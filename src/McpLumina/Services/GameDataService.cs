@@ -45,7 +45,7 @@ public sealed class GameDataService : IDisposable
         var luminaOptions = new LuminaOptions
         {
             PanicOnSheetChecksumMismatch = false,
-            DefaultExcelLanguage         = LanguageService.ToLuminaLanguage(_config.LanguageDefault),
+            DefaultExcelLanguage         = Language.English, // effective default resolved after availability probe; always pass language explicitly in call sites
         };
 
         _gameData      = new GameData(ResolveSqpackPath(_config.GamePath), luminaOptions);
@@ -175,7 +175,7 @@ public sealed class GameDataService : IDisposable
 
     private SheetDescribeResponse BuildSheetDescribeResponse(string sheetName)
     {
-        var sheet       = _genericReader.LoadSheet(sheetName);  // throws SheetNotFoundException
+        var sheet       = _genericReader.LoadSheet(sheetName, LanguageService.ToLuminaLanguage(_languages.DefaultLanguage));
         var schemaNames = _schema.GetColumnNames(sheetName, sheet.Columns.Count);
         var columns     = _genericReader.GetColumns(sheet, schemaNames);
 

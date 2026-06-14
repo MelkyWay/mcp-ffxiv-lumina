@@ -413,7 +413,7 @@ Searches player actions (abilities, spells, weaponskills) from the Action sheet.
       "rowId": 162,
       "name": { "en": "Flare" },
       "icon": 2652,
-      "classJobId": 25,
+      "classJob": { "id": 25, "name": { "en": "Black Mage" } },
       "classJobLevel": 50,
       "actionCategoryId": 2,
       "actionCategoryName": "Spell",
@@ -427,7 +427,7 @@ Searches player actions (abilities, spells, weaponskills) from the Action sheet.
 }
 ```
 
-**ActionCategory IDs:** `2` = Spell, `3` = Weaponskill, `4` = Ability. Cast and recast times are in milliseconds. `maxCharges > 1` indicates a charges-based cooldown.
+**`classJob` is `null` for role and cross-class actions.** **ActionCategory IDs:** `2` = Spell, `3` = Weaponskill, `4` = Ability. Cast and recast times are in milliseconds. `maxCharges > 1` indicates a charges-based cooldown.
 
 ---
 
@@ -446,15 +446,17 @@ Returns passive job traits from the Trait sheet. Results are ordered by level.
   "totalMatches": 12,
   "traits": [
     {
-      "rowId": 47,
-      "name":        { "en": "Maim and Mend" },
-      "description": { "en": "Increases the potency of physical attacks by 10% and all healing magic potency by 30%." },
-      "classJobId":  22,
-      "level":       20
+      "rowId":    47,
+      "name":     { "en": "Maim and Mend" },
+      "icon":     10103,
+      "classJob": { "id": 21, "name": { "en": "Warrior" } },
+      "level":    20
     }
   ]
 }
 ```
+
+**`classJob` is `null` for shared/role traits.**
 
 ---
 
