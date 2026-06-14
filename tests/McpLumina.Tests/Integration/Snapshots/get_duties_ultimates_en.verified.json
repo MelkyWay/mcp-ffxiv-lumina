@@ -7,7 +7,7 @@
     "en"
   ],
   "FallbackUsed": false,
-  "Count": 6,
+  "Count": 7,
   "Duties": [
     {
       "RowId": 280,
@@ -68,7 +68,17 @@
       "IsHighEndDuty": true,
       "LevelRequired": 100,
       "ItemLevelRequired": 0
+    },
+    {
+      "RowId": 1094,
+      "Name": {
+        "en": "Dancing Mad (Ultimate)"
+      },
+      "Category": "ultimate",
+      "IsHighEndDuty": true,
+      "LevelRequired": 100,
+      "ItemLevelRequired": 0
     }
   ],
-  "GameVersion": "2026.03.17.0000.0000"
+  "GameVersion": "2026.06.10.0000.0000"
 }

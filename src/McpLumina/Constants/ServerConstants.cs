@@ -3,7 +3,7 @@ namespace McpLumina.Constants;
 // ============================================================
 // PATCH-SENSITIVE FILE
 // Review and update after every major FFXIV patch.
-// Last validated: Patch 7.2 / 2026-03-17 (game ver 2026.03.17.0000.0000)
+// Last validated: Patch 7.3 / 2026-06-10 (game ver 2026.06.10.0000.0000)
 //
 // Steps after a patch:
 //   1. Update KnownGoodGameVersion.Value
@@ -13,7 +13,7 @@ namespace McpLumina.Constants;
 
 public static class KnownGoodGameVersion
 {
-    public const string Value = "2026.03.17.0000.0000";
+    public const string Value = "2026.06.10.0000.0000";
 }
 
 /// <summary>

@@ -552,7 +552,20 @@
       "IsJob": true,
       "IsLimited": false,
       "JobIndex": 22
+    },
+    {
+      "RowId": 43,
+      "Name": {
+        "en": "beastmaster"
+      },
+      "Abbreviation": {
+        "en": "BST"
+      },
+      "Role": "Limited",
+      "IsJob": true,
+      "IsLimited": true,
+      "JobIndex": 23
     }
   ],
-  "GameVersion": "2026.03.17.0000.0000"
+  "GameVersion": "2026.06.10.0000.0000"
 }
