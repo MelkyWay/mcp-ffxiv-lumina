@@ -3,7 +3,7 @@ namespace McpLumina.Constants;
 // ============================================================
 // PATCH-SENSITIVE FILE
 // Review and update after every major FFXIV patch.
-// Last validated: Patch 7.55 (hotfix) / 2026-08-05 (game ver 2026.08.05.0000.0000)
+// Last validated: Patch 7.56 / 2026-10-06 (game ver 2026.10.06.0000.0000)
 //
 // Steps after a patch:
 //   1. Update KnownGoodGameVersion.Value
@@ -13,12 +13,12 @@ namespace McpLumina.Constants;
 
 public static class KnownGoodGameVersion
 {
-    public const string Value = "2026.08.05.0000.0000";
+    public const string Value = "2026.10.06.0000.0000";
 }
 
 /// <summary>
 /// ContentType row IDs used to categorise duties in get_duties.
-/// Verified against ContentType sheet via Lumina probe (patch 7.2).
+/// Verified against the ContentType sheet on game version 2026.10.06.0000.0000 (patch 7.56).
 /// NOTE: Unreal trials share ContentType=4 (Trial) and are identified by name suffix only.
 /// </summary>
 public static class ContentTypeIds

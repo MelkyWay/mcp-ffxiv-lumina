@@ -27,7 +27,7 @@ public sealed class FfxivTools(GameDataService gameData, ResponseCacheService ca
         "role groupings (Tank, Healer, Melee DPS, Physical Ranged DPS, Magical Ranged DPS, Limited). " +
         "Role labels are English-only in V1 (not sourced from game strings). " +
         "isJob=false indicates a base class (e.g. Marauder); isJob=true indicates a job (e.g. Warrior). " +
-        "isLimited=true identifies Blue Mage.")]
+        "isLimited=true identifies limited jobs such as Blue Mage and Beastmaster.")]
     public string GetJobs(
         [Description("Comma-separated language codes for name/abbreviation fields, e.g. 'en,ja'. Defaults to server default.")] string? languages = null) =>
         ToolHelper.Execute(() =>

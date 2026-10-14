@@ -16,6 +16,6 @@ public sealed record JobEntry(
     Dictionary<string, string> Abbreviation,
     string Role,        // English-only derived label (V1 limitation)
     bool   IsJob,       // false = base class (e.g. Marauder), true = job (e.g. Warrior)
-    bool   IsLimited,   // true = Blue Mage
+    bool   IsLimited,   // true = limited job (e.g. Blue Mage or Beastmaster)
     byte   JobIndex     // display sort order
 );

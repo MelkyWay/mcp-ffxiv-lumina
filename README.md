@@ -326,7 +326,7 @@ Returns all ClassJob rows (base classes and jobs) enriched with derived role gro
 > **Note:** `name` values are the internal lowercase keys stored in the game data (e.g. `"paladin"`), not the display-capitalised form.
 
 - `isJob: false` — base class (e.g. Marauder); `isJob: true` — job (e.g. Warrior)
-- `isLimited: true` — Blue Mage
+- `isLimited: true` — limited jobs such as Blue Mage and Beastmaster
 - `role` values: `Tank`, `Healer`, `Melee DPS`, `Physical Ranged DPS`, `Magical Ranged DPS`, `Limited`, `None`
 
 > **Note:** `role` labels are English-only. They are derived values, not sourced from game strings.
